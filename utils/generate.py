@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 '''build pulses for testing'''
 import numpy as np
-from gnuradio.filter import firdes
+# from gnuradio.filter import firdes
 import scipy.signal as sig
 import os
 import scipy.interpolate as interp
@@ -14,7 +14,16 @@ def gen_burst(size=3000, samp_rate=48e3):
     window = np.bartlett(size//2)
     triangle_source = np.hstack((window, window))
     pulse = glfsr_source * cosine_source * triangle_source
-    rrc_taps = firdes.root_raised_cosine(.95, samp_rate, samp_rate*3/8, 0.35, 11*4)
+    # rrc_taps = firdes.root_raised_cosine(.95, samp_rate, samp_rate*3/8, 0.35, 11*4)
+    rrc_taps = np.array([ 0.00118141,  0.00057044, -0.00139341, -0.00073436,  0.001506  ,
+        0.00056174, -0.00208351, -0.00046321,  0.00326889,  0.00113577,
+       -0.00413576, -0.00176473,  0.00473822,  0.00040722, -0.00905426,
+        0.00101337,  0.02324399,  0.00914119, -0.04807992, -0.05711537,
+        0.07358722,  0.28460228,  0.38973358,  0.28460228,  0.07358722,
+       -0.05711537, -0.04807992,  0.00914119,  0.02324399,  0.00101337,
+       -0.00905426,  0.00040722,  0.00473822, -0.00176473, -0.00413576,
+        0.00113577,  0.00326889, -0.00046321, -0.00208351,  0.00056174,
+        0.001506  , -0.00073436, -0.00139341,  0.00057044,  0.00118141])
     pulse_filtered = sig.lfilter(rrc_taps, [1], pulse)
     pulse_filtered = pulse
     edge = np.zeros((next_size(size) - size) // 2)
