@@ -2,6 +2,7 @@ use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 
+use num_complex::Complex32;
 
 // Reads a file of packed 32 bit floats and returns
 // a Vec of its contents
@@ -19,9 +20,22 @@ fn read_file_f32(filename: &str) -> io::Result<Vec<f32>> {
     Ok(floats)
 }
 
+// Converts a slice of 32 bit floats to the same
+// data as num_complex::Complex32
+fn to_complex_32(in_slice: &[f32]) -> Vec<Complex32> {
+
+    let mut samples = Vec::new();
+    for real in in_slice.iter() {
+        samples.push(Complex32::new(*real, 0.0)); // re + 0j
+    }
+    samples
+
+}
+
 fn main() {
     let data_real = read_file_f32("../data/burst_0000_raw.f32").unwrap();
-    for sample in data_real.iter() {
+    let data = to_complex_32(&data_real);
+    for sample in data.iter() {
         println!("{}", sample);
     }
 }
