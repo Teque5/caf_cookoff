@@ -34,7 +34,7 @@ def apply_tdoa(ray, tdoa, samp_rate):
     times_new = times_old + tdoa
     kill = interp.interp1d(times_old, ray, fill_value="extrapolate")
     return kill(times_new)
-    
+
 
 if __name__ == '__main__':
     np.random.seed(0)
@@ -49,9 +49,9 @@ if __name__ == '__main__':
         apple = gen_burst()
         banana = apple + np.random.random(len(apple))*2-1
         banana = apply_fdoa(banana, fdoa, samp_rate)
-        banana = apply_tdoa(banana, tdoa, samp_rate) 
+        banana = apply_tdoa(banana, tdoa, samp_rate)
         filename = os.path.join(data_dir,'burst_{:04.0f}_raw.f32'.format(idx))
         apple.astype(np.float32).tofile(filename)
         filename = os.path.join(data_dir,'burst_{:04.0f}_t{:+.6f}_f{:+.6f}.f32'.format(idx,tdoa*samp_rate,fdoa*samp_rate))
         banana.astype(np.float32).tofile(filename)
-        print('{}: tdoa, fdoa = ({:+.6f} samples, {:+.6f} Hz)'.format(idx,tdoa*samp_rate, fdoa*samp_rate))     
+        print('{}: tdoa, fdoa = ({:+.6f} samples, {:+.6f} Hz)'.format(idx,tdoa*samp_rate, fdoa*samp_rate))
