@@ -2,3 +2,4 @@
 
 # caf_cookoff specific
 data/
+grc/*.py
