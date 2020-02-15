@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	// "log"
 	// "gopkg.in/yaml.v2"
+  // "github.com/mjibson/go-dsp/fft"
 )
 
 // type Sample struct {
@@ -37,17 +38,17 @@ func load_f32(path string) (ray []float32, err error) {
 	return ray, nil
 }
 
-func f32_to_c64(ray_i []float32) (ray_iq []complex64) {
+func f32_to_c128(ray_i []float32) (ray_iq []complex128) {
 	// Convert real float32 to complex64
 	len_ray := len(ray_i)
 	ray_q := make([]float32, len_ray)
-	ray_iq = make([]complex64, len_ray)
+	ray_iq = make([]complex128, len_ray)
 	for idx := 0; idx < len_ray; idx += 1 {
-		ray_iq[idx] = complex(ray_i[idx], ray_q[idx])
+		ray_iq[idx] = complex(float64(ray_i[idx]), float64(ray_q[idx]))
 	}
 	return ray_iq
 }
-
+// 
 // func xcor(apple []complex64, banana []complex64) (corr []complex64) {
 //
 // }
@@ -58,17 +59,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	apple_iq := f32_to_c64(apple)
+	apple_iq := f32_to_c128(apple)
 	banana, err := load_f32(data_path + "burst_0000_t+20.007860_f+88.202617.f32")
 	if err != nil {
 		log.Fatal(err)
 	}
-	banana_iq := f32_to_c64(banana)
+	banana_iq := f32_to_c128(banana)
 	fmt.Println(apple_iq)
 	fmt.Println(banana_iq)
 }
-
-// handle_banana, err := os.Open(data_path + "burst_0000_raw.f32")
-// if err != nil {
-//   log.Fatalf("cannot open apple %v", err)
-// }
