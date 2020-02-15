@@ -19,6 +19,8 @@ TBD
 ## Run (wip)
 ### Requires
 * python3
+    * scipy
+    * numpy
 * Rust v1.14
 * go v1.13
 * GNU Radio if building signals

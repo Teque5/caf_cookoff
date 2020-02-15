@@ -16,7 +16,13 @@ def gen_burst(size=3000, samp_rate=48e3):
     pulse = glfsr_source * cosine_source * triangle_source
     rrc_taps = firdes.root_raised_cosine(.95, samp_rate, samp_rate*3/8, 0.35, 11*4)
     pulse_filtered = sig.lfilter(rrc_taps, [1], pulse)
-    return pulse_filtered
+    pulse_filtered = pulse
+    edge = np.zeros((next_size(size) - size) // 2)
+    return np.hstack((edge, pulse_filtered, edge))
+
+def next_size(size):
+    pow = np.ceil(np.log2(size)).astype(np.int)
+    return 2**pow
 
 def apply_fdoa(ray, fdoa, samp_rate):
     times = np.arange(len(ray))/samp_rate
@@ -41,7 +47,7 @@ if __name__ == '__main__':
         tdoa = np.random.normal(scale=50)/samp_rate
         amp = np.random.random()
         apple = gen_burst()
-        banana = apple + np.random.random(3000)*2-1
+        banana = apple + np.random.random(len(apple))*2-1
         banana = apply_fdoa(banana, fdoa, samp_rate)
         banana = apply_tdoa(banana, tdoa, samp_rate) 
         filename = os.path.join(data_dir,'burst_{:04.0f}_raw.f32'.format(idx))
