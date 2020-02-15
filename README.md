@@ -1,12 +1,6 @@
 # CAF Cook-Off
 Which cross ambiguity function will win? Implementations in *Rust*, *Go*, and *Python*.
 
-## Requires
-* python3
-* Rust v1.14
-* go v1.13
-* GNU Radio if building signals
-** gr-sigmf
 
 ## OV-1
 We are trying to answer the following questions:
@@ -23,6 +17,14 @@ Teque5 predicts that *go* and *rust* will produce the fastest implementations, b
 TBD
 
 ## Run (wip)
+### Requires
+* python3
+* Rust v1.14
+* go v1.13
+* GNU Radio if building signals
+    * gr-sigmf
+
+### Procedure
 ```bash
 ./build_all.sh
 ./benchmark.sh
