@@ -1,0 +1,4 @@
+*.pyc
+
+# caf_cookoff specific
+data/
