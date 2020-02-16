@@ -108,6 +108,17 @@ func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) []complex128 
 //
 // }
 
+func arange(start, stop, step float64) (rnge []float64) {
+    N := int(math.Ceil((stop - start) / step));
+    rnge = make([]float64, N, N)
+    i := 0
+    for x := start; x < stop; x += step {
+        rnge[i] = x;
+        i += 1
+    }
+    return
+}
+
 func main() {
 	data_path := "../data/"
 	apple, err := load_c64(data_path + "chirp_0_raw.c64")
@@ -121,9 +132,13 @@ func main() {
 	}
 	banana_iq := c64_to_c128(banana)[0:4096]
 	corr := xcor(apple_iq, banana_iq)
-  trash := []complex128{1,2,3,4,5,6,7,8,9,10}
-	fmt.Println(trash)
+
+	freqs_hz := arange(-50, 50, 0.5)
+	fmt.Println(freqs_hz)
+
+  // trash := []complex128{1,2,3,4,5,6,7,8,9,10}
+	// fmt.Println(trash)
   fmt.Println(len(corr))
-  z := apply_fdoa(corr, 200, 48e3)
-  fmt.Println(z)
+  // z := apply_fdoa(corr, 200, 48e3)
+  // fmt.Println(z)
 }
