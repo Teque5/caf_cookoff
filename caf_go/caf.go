@@ -76,7 +76,7 @@ func c64_to_c128(ray_i []complex64) (ray_iq []complex128) {
 	return ray_iq
 }
 
-func xcor(apple []complex128, banana []complex128) (corr []complex128) {
+func xcor(apple []complex128, banana []complex128) (corr_abs []float64) {
 	/*
 	  Standard crosscorrelation implementation
 	*/
@@ -87,11 +87,18 @@ func xcor(apple []complex128, banana []complex128) (corr []complex128) {
 	apple_fft := fft.FFT(apple)
 	banana_fft := fft.FFT(banana)
 	fleeb := make([]complex128, len_ray)
+
 	for idx := 0; idx < len_ray; idx += 1 {
 		fleeb[idx] = apple_fft[idx] * cmplx.Conj(banana_fft[idx])
 	}
+	corr := make([]complex128, len_ray)
+	corr_abs = make([]float64, len_ray)
 	corr = fft.IFFT(fleeb)
-	return corr
+
+	for idx, val := range(corr) {
+		corr_abs[idx] = cmplx.Abs(val)
+	}
+	return
 }
 
 func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) []complex128 {
@@ -104,9 +111,19 @@ func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) []complex128 
   return ray
 }
 
-// func amb_surf(needle []complex128, haystack []complex128, freqs_hz []float64, samp_rate float64) (surf [][]complex128) {
-//
-// }
+func amb_surf(needle []complex128, haystack []complex128, freqs_hz []float64, samp_rate float64) (surf [][]float64) {
+	time_bins := len(needle)
+	freq_bins := len(freqs_hz)
+	surf = make([][]float64, time_bins, freq_bins)
+	shifted := make([]complex128, time_bins)
+	corr := make([]float64, time_bins)
+	for _, freq_hz := range freqs_hz {
+		shifted = apply_fdoa(needle, freq_hz, samp_rate)
+		corr = xcor(shifted, haystack)
+		surf = append(surf, corr)
+	}
+	return
+}
 
 func arange(start, stop, step float64) (rnge []float64) {
     N := int(math.Ceil((stop - start) / step));
@@ -134,7 +151,8 @@ func main() {
 	corr := xcor(apple_iq, banana_iq)
 
 	freqs_hz := arange(-50, 50, 0.5)
-	fmt.Println(freqs_hz)
+	// fmt.Println(freqs_hz)
+	surf := amb_surf(apple_iq, banana_iq, freqs_hz, 48000)
 
   // trash := []complex128{1,2,3,4,5,6,7,8,9,10}
 	// fmt.Println(trash)
