@@ -2,13 +2,11 @@ package main
 
 import (
 	"fmt"
-	// "io"
 	"log"
 	"math/cmplx"
 	"os"
 	"encoding/binary"
 	"math"
-	// "log"
 	"time"
 	"github.com/mjibson/go-dsp/fft"
 )
@@ -153,19 +151,20 @@ func find_2d_peak(ray2d [][]float64) (best_idx int, best_jdx int) {
 func main() {
 	start := time.Now()
 	data_path := "../data/"
-	apple, err := load_c64(data_path + "chirp_0_raw.c64")
+	apple, err := load_c64(data_path + "chirp_4_raw.c64")
 	if err != nil {
 		log.Fatal(err)
 	}
 	apple_iq := c64_to_c128(apple)
-	banana, err := load_c64(data_path + "chirp_0_T+202samp_F.+69.25Hz.c64")
+	banana, err := load_c64(data_path + "chirp_4_T+70samp_F+82.89Hz.c64")
 	if err != nil {
 		log.Fatal(err)
 	}
 	banana_iq := c64_to_c128(banana)[0:4096]
 
-	freqs_hz := arange(-100, 100, 0.5)
+	freqs_hz := arange(-80, 80, 0.5)
 	surf := amb_surf(apple_iq, banana_iq, freqs_hz, 48000)
+	// fmt.Println(surf)
 	fdx, tdx := find_2d_peak(surf)
 	fmt.Println("out", 4096-tdx, freqs_hz[fdx])
 	t := time.Now()

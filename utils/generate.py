@@ -65,4 +65,4 @@ if __name__ == '__main__':
         # Add some noise
         chirp_search += np.random.normal(0, 1e-5, len(chirp_search)) + 1j*np.random.normal(0, 1e-5, len(chirp_search))
         chirp_search = chirp_search.astype(np.complex64)
-        chirp_search.tofile(os.path.join(data_dir, 'chirp_{:d}_T{:+d}samp_F.{:+.2f}Hz.c64'.format(idx, lag, foffset)))
+        chirp_search.tofile(os.path.join(data_dir, 'chirp_{:d}_T{:+d}samp_F{:+.2f}Hz.c64'.format(idx, lag, foffset)))

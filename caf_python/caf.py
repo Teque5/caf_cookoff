@@ -26,7 +26,7 @@ def caf(needle, haystack, frequency_offsets, sample_rate=1):
     num_needle_samples = len(needle)
     num_haystack_samples = len(haystack)
     num_frequency_offsets = len(frequency_offsets)
-    
+
     freq_shift_vectors = np.exp(1j*2*np.pi*np.outer(frequency_offsets, np.arange(num_needle_samples) / sample_rate))
     shifted_needle = np.multiply(freq_shift_vectors, needle)
 
@@ -34,22 +34,22 @@ def caf(needle, haystack, frequency_offsets, sample_rate=1):
     translated_soi = np.multiply(shift_vectors, soi_samples)
     del shift_vectors
     caf_surface = np.zeros((num_frequency_offsets, num_needle_samples + num_haystack_samples - 1), dtype=np.float64)
-    
+
     for i in range(num_freq_offsets):
         caf_surface[i, :] = np.abs(np.correlate(search_capture_samples, (translated_soi[i, :]), mode='full'))
-        
+
     return caf_surface
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import os
-    from mpl_toolkits.mplot3d import Axes3D  
+    from mpl_toolkits.mplot3d import Axes3D
     from matplotlib import cm
 
     start_time = time.time()
     data_dir = '../data'
-    search_capture_filename = 'chirp_5_T+177samp_F.-92.72Hz.c64'
-    soi_filename = 'chirp_5_raw.c64'
+    search_capture_filename = 'chirp_4_T+70samp_F+82.89Hz.c64'
+    soi_filename = 'chirp_4_raw.c64'
     soi_samples = np.fromfile(os.path.join(data_dir, soi_filename), dtype=np.complex64)
     search_capture_samples = np.fromfile(os.path.join(data_dir, search_capture_filename), dtype=np.complex64)
 
