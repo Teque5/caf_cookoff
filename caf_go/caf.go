@@ -4,18 +4,15 @@ import (
 	"fmt"
 	// "io"
 	"log"
+	"math/cmplx"
 	"os"
 	// "sort"
 	// "math"
 	"encoding/binary"
 	// "log"
 	// "gopkg.in/yaml.v2"
-  // "github.com/mjibson/go-dsp/fft"
+	"github.com/mjibson/go-dsp/fft"
 )
-
-// type Sample struct {
-//
-// }
 
 func load_f32(path string) (ray []float32, err error) {
 	handle, err := os.Open(path)
@@ -41,17 +38,30 @@ func load_f32(path string) (ray []float32, err error) {
 func f32_to_c128(ray_i []float32) (ray_iq []complex128) {
 	// Convert real float32 to complex64
 	len_ray := len(ray_i)
-	ray_q := make([]float32, len_ray)
 	ray_iq = make([]complex128, len_ray)
 	for idx := 0; idx < len_ray; idx += 1 {
-		ray_iq[idx] = complex(float64(ray_i[idx]), float64(ray_q[idx]))
+		ray_iq[idx] = complex(float64(ray_i[idx]), 0)
 	}
 	return ray_iq
 }
-// 
-// func xcor(apple []complex64, banana []complex64) (corr []complex64) {
-//
-// }
+
+// func ray_conj(ray_iq []complex128) (ray_conj)
+
+func xcor(apple []complex128, banana []complex128) (corr []complex128) {
+	/*
+	  Standard crosscorrelation implementation
+	*/
+	len_ray := len(apple)
+	apple_fft := fft.FFT(apple)
+	fmt.Println(len_ray)
+	banana_fft := fft.FFT(banana)
+	fleeb := make([]complex128, len_ray)
+	for idx := 0; idx < len_ray; idx += 1 {
+		fleeb[idx] = apple_fft[idx] * cmplx.Conj(banana_fft[idx])
+	}
+	corr = fft.IFFT(fleeb)
+	return corr
+}
 
 func main() {
 	data_path := "../data/"
@@ -65,6 +75,13 @@ func main() {
 		log.Fatal(err)
 	}
 	banana_iq := f32_to_c128(banana)
-	fmt.Println(apple_iq)
-	fmt.Println(banana_iq)
+	// fmt.Println(apple_iq)
+	// fmt.Println(banana_iq)
+	corr := xcor(apple_iq, banana_iq)
+	fmt.Println(len(corr))
+
+	var a = []complex128{0, 0, 0, 0, 1, 2, 3, 4}
+	a_fft := fft.FFT(a)
+	fmt.Println(a_fft)
+
 }
