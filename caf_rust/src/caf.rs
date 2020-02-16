@@ -1,3 +1,12 @@
+// TODO
+// Migrate from Complex32 to Complex64 to be on parity with Go implementation
+// Compute forward/reverse FFT wisdoms once and save
+// Add option for FFTW/RustFFT for direct bench comparison
+// Multithreading FFTs and maybe frequency shift calculations
+// impl some of these on the types directly
+//      xcor, freq shift, write_file on Complex32 slice
+//      2d peak on Vec<Vec<Complex32>> if possible
+
 use std::io;
 use std::io::prelude::*;
 use std::f32::consts::PI;
