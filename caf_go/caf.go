@@ -24,13 +24,13 @@ func load_c64(path string) (ray []complex64, err error) {
 		return nil, err
 	}
 	sample_count := info.Size() / 8
-	fmt.Println(sample_count)
 	ray = make([]complex64, sample_count)
 
 	err = binary.Read(handle, binary.LittleEndian, &ray)
 	if err != nil {
 		log.Fatalf("error reading floats %v", err)
 	}
+	// log.Printf("loaded %f samples", sample_count)
 	return ray, nil
 }
 
@@ -46,13 +46,13 @@ func load_f32(path string) (ray []float32, err error) {
 		return nil, err
 	}
 	sample_count := info.Size() / 4
-	fmt.Println(sample_count)
 	ray = make([]float32, sample_count)
 
 	err = binary.Read(handle, binary.LittleEndian, &ray)
 	if err != nil {
 		log.Fatalf("error reading floats %v", err)
 	}
+	// log.Printf("loaded %f samples", sample_count)
 	return ray, nil
 }
 
@@ -63,7 +63,7 @@ func f32_to_c128(ray_i []float32) (ray_iq []complex128) {
 	for idx := 0; idx < len_ray; idx += 1 {
 		ray_iq[idx] = complex(float64(ray_i[idx]), 0)
 	}
-	return ray_iq
+	return
 }
 
 func c64_to_c128(ray_i []complex64) (ray_iq []complex128) {
@@ -73,7 +73,7 @@ func c64_to_c128(ray_i []complex64) (ray_iq []complex128) {
 	for idx := 0; idx < len_ray; idx += 1 {
 		ray_iq[idx] = complex128(ray_i[idx])
 	}
-	return ray_iq
+	return
 }
 
 func xcor(apple []complex128, banana []complex128) (corr_abs []float64) {
@@ -100,6 +100,7 @@ func xcor(apple []complex128, banana []complex128) (corr_abs []float64) {
 }
 
 func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) []complex128 {
+	// Apply frequency shift
 	len_ray := len(ray)
 	precache := complex(0, -2*math.Pi*fdoa/samp_rate)
 	for idx := 0; idx < len_ray; idx += 1 {
@@ -109,6 +110,7 @@ func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) []complex128 
 }
 
 func amb_surf(needle []complex128, haystack []complex128, freqs_hz []float64, samp_rate float64) (surf [][]float64) {
+	// Create cross ambiguity surface
 	len_ray := len(needle)
 	shifted := make([]complex128, len_ray)
 	corr := make([]float64, len_ray)
@@ -131,16 +133,16 @@ func arange(start, stop, step float64) (rnge []float64) {
 	return
 }
 
-func find_2d_peak(surf [][]float64) (fmax int, tmax int) {
+func find_2d_peak(ray2d [][]float64) (best_idx int, best_jdx int) {
 	// 2D Argmax
 	var max float64 = 0
-	for rdx, row := range surf {
-		for vdx, elem := range row {
+	for idx, row := range ray2d {
+		for jdx, elem := range row {
 			if elem > max {
 				max = elem
-				fmax = rdx
-				tmax = vdx
-				fmt.Println("up", fmax, tmax)
+				best_idx = idx
+				best_jdx = jdx
+				// fmt.Println("up", fmax, tmax)
 			}
 		}
 	}
@@ -163,6 +165,6 @@ func main() {
 	freqs_hz := arange(-100, 100, 0.5)
 	surf := amb_surf(apple_iq, banana_iq, freqs_hz, 48000)
 	fdx, tdx := find_2d_peak(surf)
-	fmt.Println(4096-tdx, freqs_hz[fdx])
+	fmt.Println("out", 4096-tdx, freqs_hz[fdx])
 
 }
