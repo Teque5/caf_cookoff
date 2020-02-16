@@ -1,57 +1,69 @@
 #!/usr/bin/env python3
-'''build pulses for testing'''
+'''Make some chirpy things for testing'''
 import numpy as np
-from gnuradio.filter import firdes
 import scipy.signal as sig
 import os
 import scipy.interpolate as interp
+import scipy as sp
+import scipy.signal
 
-def gen_burst(size=3000, samp_rate=48e3):
-    '''modeled on the gnu radio implementation'''
-    times = np.arange(size)/samp_rate
-    glfsr_source = np.random.random(size=size) >= .5
-    cosine_source = .2 + .8 * np.cos(2*np.pi*samp_rate/2**15*times)
-    window = np.bartlett(size//2)
-    triangle_source = np.hstack((window, window))
-    pulse = glfsr_source * cosine_source * triangle_source
-    rrc_taps = firdes.root_raised_cosine(.95, samp_rate, samp_rate*3/8, 0.35, 11*4)
-    pulse_filtered = sig.lfilter(rrc_taps, [1], pulse)
-    pulse_filtered = pulse
-    edge = np.zeros((next_size(size) - size) // 2)
-    return np.hstack((edge, pulse_filtered, edge))
+def apply_offset(signal, dfc, sample_rate):
+    '''
+    Applies a constant or time-varying frequency offset to the signal.
+    Returns a copy of the signal with the frequency offset applied.
+    '''
+    if type(dfc) in (int, float):
+        shift = np.exp(1j*2*np.pi*dfc*np.arange(len(signal))/sample_rate)
+    else:
+        phi = np.cumsum(2*np.pi*dfc) / sample_rate
+        shift = np.exp(1j*(np.arange(len(signal))/sample_rate+phi))
+    return shift*signal
 
-def next_size(size):
-    pow = np.ceil(np.log2(size)).astype(np.int)
-    return 2**pow
+def generate_chirp(sample_rate, chirp_length=4096, chirp_order=2, relative_bandwidth=1e-2, sweep_range_Hz=10e3, window=np.hanning):
+    # Generate some shaped noise
+    kernel = sp.signal.firwin(127, cutoff=0.5*relative_bandwidth, fs=sample_rate)
+    srange = np.random.uniform(1e3, 10e3)
+    chirp = np.random.normal(0, 1, chirp_length) + 1j*np.random.normal(0, 1, chirp_length)
+    chirp = sp.signal.filtfilt(kernel, 1, chirp)
 
-def apply_fdoa(ray, fdoa, samp_rate):
-    times = np.arange(len(ray))/samp_rate
-    ray *= np.exp(-1j*2*np.pi*samp_rate*fdoa*times).real
-    return ray
+    # Taper the edges
+    if window is not None:
+        chirp = window(chirp_length)*chirp
+    chirp = chirp.astype(np.complex64)
 
-def apply_tdoa(ray, tdoa, samp_rate):
-    times_old = np.arange(len(ray))/samp_rate
-    times_new = times_old + tdoa
-    kill = interp.interp1d(times_old, ray, fill_value="extrapolate")
-    return kill(times_new)
-    
+    # Make it move
+    shape = np.linspace(-1, 1, chirp_length)**chirp_order
+    offset_Hz = shape*sweep_range_Hz
+    chirp = apply_offset(chirp, offset_Hz, sample_rate)
+
+    return chirp
 
 if __name__ == '__main__':
     np.random.seed(0)
     data_dir = '../data'
     samp_rate = 48e3
+
+    chirp_length = 4096
+    chirp_order = np.random.randint(2,5) # Determines shape of chirp
+    relative_bandwidth = np.random.uniform(1e-3, 5e-2) # Width of chirp, relative to sample rate
+    sweep_range_Hz = np.random.uniform(1e3, 10e3) # Range of chirp
+
+    dfc_range_Hz = 1e2 # Range of frequency offsets for search capture
+    lag = np.random.randint(7, 256) # Lag (in samples) of SOI in search capture
+
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
     for idx in range(10):
-        fdoa = np.random.normal(scale=50)/samp_rate
-        tdoa = np.random.normal(scale=50)/samp_rate
-        amp = np.random.random()
-        apple = gen_burst()
-        banana = apple + np.random.random(len(apple))*2-1
-        banana = apply_fdoa(banana, fdoa, samp_rate)
-        banana = apply_tdoa(banana, tdoa, samp_rate) 
-        filename = os.path.join(data_dir,'burst_{:04.0f}_raw.f32'.format(idx))
-        apple.astype(np.float32).tofile(filename)
-        filename = os.path.join(data_dir,'burst_{:04.0f}_t{:+.6f}_f{:+.6f}.f32'.format(idx,tdoa*samp_rate,fdoa*samp_rate))
-        banana.astype(np.float32).tofile(filename)
-        print('{}: tdoa, fdoa = ({:+.6f} samples, {:+.6f} Hz)'.format(idx,tdoa*samp_rate, fdoa*samp_rate))     
+        chirp = generate_chirp(chirp_length=chirp_length, chirp_order=chirp_order, relative_bandwidth=relative_bandwidth, sweep_range_Hz=sweep_range_Hz, sample_rate=samp_rate)
+        chirp = chirp.astype(np.complex64)
+        chirp.tofile(os.path.join(data_dir, 'chirp_{:d}_raw.c64'.format(idx)))
+
+        # Add a random time lag
+        
+        foffset = np.random.uniform(-dfc_range_Hz, dfc_range_Hz)
+        chirp_search = np.concatenate([np.zeros(lag), chirp, np.zeros(96)])
+        chirp_search = apply_offset(chirp_search, foffset, samp_rate)
+        # Add some noise
+        chirp_search += np.random.normal(0, 1e-5, len(chirp_search)) + 1j*np.random.normal(0, 1e-5, len(chirp_search))
+        chirp_search = chirp_search.astype(np.complex64)
+        chirp_search.tofile(os.path.join(data_dir, 'chirp_{:d}_T{:+d}s_F.{:+.2f}Hz.c64'.format(idx, lag, foffset)))
