@@ -147,7 +147,7 @@ fn xcor_rustfft(a: &[Complex32], b: &[Complex32]) -> Vec<Complex32> {
 
 // Takes in a slice of samples at samp_rate and applies
 // a frequency shift to it
-fn apply_freq_shifts(samples: &mut [Complex32], freq_shift: f32, fs: u32)
+fn apply_freq_shifts(samples: &[Complex32], freq_shift: f32, fs: u32)
     -> Vec<Complex32> {
 
     // Convert (back) to vec
@@ -163,19 +163,27 @@ fn apply_freq_shifts(samples: &mut [Complex32], freq_shift: f32, fs: u32)
     }
 
     // Return our shifted samples
-    samples 
+    samples
 }
 
 fn main() {
-    let data = to_complex_32(
+    let needle = to_complex_32(
         &read_file_f32("../data/burst_0000_raw.f32")
         .unwrap());
 
-    let data_shifted = to_complex_32(
+    let haystack = to_complex_32(
         &read_file_f32("../data/burst_0000_t+20.007860_f+88.202617.f32")
         .unwrap());
 
-    let xcor_res = xcor_rustfft(&data, &data_shifted);
+    let xcor_res = xcor_rustfft(&needle, &haystack);
+
+    let mut shifts = Vec::new();
+    // -50Hz to 50Hz, 0.5Hz step
+    for shift_millihz in (-50000..50000).step_by(500) {
+        let shift = (shift_millihz as f32) / 1e3;
+        shifts.push(apply_freq_shifts(&xcor_res, shift, 48000));
+        println!("Calculating new data with shift {}", shift);
+    }
     let mut freq_test = Vec::new();
     for i in 0..10 {
         freq_test.push(Complex32::new((i+1) as f32, 0.0));
