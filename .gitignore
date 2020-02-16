@@ -1,5 +1,7 @@
 *.pyc
 
 # caf_cookoff specific
+caf_go/caf
+caf_rust/target/
 data/
 grc/*.py
