@@ -1,0 +1,13 @@
+[package]
+name = "caf_rust"
+version = "0.1.0"
+authors = ["Mark Kubiak <mkubiak.dev@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fftw = { version = "0.6", default_features = false, features = ["system"] }
+itertools = "0.8"
+num-complex = "0.2"
+rustfft = "3.0"
