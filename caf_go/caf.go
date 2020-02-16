@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"math"
 	// "log"
+	"time"
 	"github.com/mjibson/go-dsp/fft"
 )
 
@@ -110,7 +111,7 @@ func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) []complex128 
 }
 
 func amb_surf(needle []complex128, haystack []complex128, freqs_hz []float64, samp_rate float64) (surf [][]float64) {
-	// Create cross ambiguity surface
+	// Create cross ambiguity surface (filterbank method)
 	len_ray := len(needle)
 	shifted := make([]complex128, len_ray)
 	corr := make([]float64, len_ray)
@@ -150,6 +151,7 @@ func find_2d_peak(ray2d [][]float64) (best_idx int, best_jdx int) {
 }
 
 func main() {
+	start := time.Now()
 	data_path := "../data/"
 	apple, err := load_c64(data_path + "chirp_0_raw.c64")
 	if err != nil {
@@ -166,5 +168,7 @@ func main() {
 	surf := amb_surf(apple_iq, banana_iq, freqs_hz, 48000)
 	fdx, tdx := find_2d_peak(surf)
 	fmt.Println("out", 4096-tdx, freqs_hz[fdx])
-
+	t := time.Now()
+	elapsed := t.Sub(start)
+	fmt.Println(elapsed)
 }
