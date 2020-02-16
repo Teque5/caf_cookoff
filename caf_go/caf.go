@@ -7,7 +7,7 @@ import (
 	"math/cmplx"
 	"os"
 	// "sort"
-	// "math"
+	"math"
 	"encoding/binary"
 	// "log"
 	// "gopkg.in/yaml.v2"
@@ -28,7 +28,7 @@ func load_f32(path string) (ray []float32, err error) {
 	fmt.Println(sample_count)
 	ray = make([]float32, sample_count)
 
-	err = binary.Read(handle, binary.BigEndian, &ray)
+	err = binary.Read(handle, binary.LittleEndian, &ray)
 	if err != nil {
 		log.Fatalf("error reading floats %v", err)
 	}
@@ -45,15 +45,12 @@ func f32_to_c128(ray_i []float32) (ray_iq []complex128) {
 	return ray_iq
 }
 
-// func ray_conj(ray_iq []complex128) (ray_conj)
-
 func xcor(apple []complex128, banana []complex128) (corr []complex128) {
 	/*
 	  Standard crosscorrelation implementation
 	*/
 	len_ray := len(apple)
 	apple_fft := fft.FFT(apple)
-	fmt.Println(len_ray)
 	banana_fft := fft.FFT(banana)
 	fleeb := make([]complex128, len_ray)
 	for idx := 0; idx < len_ray; idx += 1 {
@@ -61,6 +58,16 @@ func xcor(apple []complex128, banana []complex128) (corr []complex128) {
 	}
 	corr = fft.IFFT(fleeb)
 	return corr
+}
+
+func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) []complex128 {
+  len_ray := len(ray)
+  pre := -2i * complex(math.Pi * fdoa / samp_rate, 0)
+  fmt.Println(pre)
+  for idx := 0; idx <  len_ray; idx += 1 {
+    ray[idx] = ray[idx] * cmplx.Exp(pre * complex(float64(idx), 0))
+  }
+  return ray
 }
 
 func main() {
@@ -75,13 +82,10 @@ func main() {
 		log.Fatal(err)
 	}
 	banana_iq := f32_to_c128(banana)
-	// fmt.Println(apple_iq)
-	// fmt.Println(banana_iq)
 	corr := xcor(apple_iq, banana_iq)
-	fmt.Println(len(corr))
+	fmt.Println(corr[0:10])
+  z := apply_fdoa(corr[0:10], .5, 48e3)
+  fmt.Println(z)
 
-	var a = []complex128{0, 0, 0, 0, 1, 2, 3, 4}
-	a_fft := fft.FFT(a)
-	fmt.Println(a_fft)
 
 }
