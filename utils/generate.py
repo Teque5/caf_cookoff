@@ -48,22 +48,21 @@ if __name__ == '__main__':
     relative_bandwidth = np.random.uniform(1e-3, 5e-2) # Width of chirp, relative to sample rate
     sweep_range_Hz = np.random.uniform(1e3, 10e3) # Range of chirp
 
-    dfc_range_Hz = 1e2 # Range of frequency offsets for search capture
-    lag = np.random.randint(7, 256) # Lag (in samples) of SOI in search capture
-
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
     for idx in range(10):
+        dfc_range_Hz = 1e2 # Range of frequency offsets for search capture
+        lag = np.random.randint(7, 256) # Lag (in samples) of SOI in search capture
         chirp = generate_chirp(chirp_length=chirp_length, chirp_order=chirp_order, relative_bandwidth=relative_bandwidth, sweep_range_Hz=sweep_range_Hz, sample_rate=samp_rate)
         chirp = chirp.astype(np.complex64)
         chirp.tofile(os.path.join(data_dir, 'chirp_{:d}_raw.c64'.format(idx)))
 
         # Add a random time lag
-        
         foffset = np.random.uniform(-dfc_range_Hz, dfc_range_Hz)
         chirp_search = np.concatenate([np.zeros(lag), chirp, np.zeros(96)])
         chirp_search = apply_offset(chirp_search, foffset, samp_rate)
+
         # Add some noise
         chirp_search += np.random.normal(0, 1e-5, len(chirp_search)) + 1j*np.random.normal(0, 1e-5, len(chirp_search))
         chirp_search = chirp_search.astype(np.complex64)
-        chirp_search.tofile(os.path.join(data_dir, 'chirp_{:d}_T{:+d}s_F.{:+.2f}Hz.c64'.format(idx, lag, foffset)))
+        chirp_search.tofile(os.path.join(data_dir, 'chirp_{:d}_T{:+d}samp_F.{:+.2f}Hz.c64'.format(idx, lag, foffset)))
