@@ -12,23 +12,27 @@ use rustfft::{FFTplanner, num_traits::Zero};
 
 // Reads a file of packed 32 bit floats and returns
 // a Vec of its contents
-fn read_file_f32(filename: &str) -> io::Result<Vec<f32>> {
+fn read_file_c64(filename: &str) -> io::Result<Vec<Complex32>> {
     let mut f = File::open(filename)?;
     let mut buffer = Vec::new();
     f.read_to_end(&mut buffer)?;
-    let mut floats = Vec::new();
-    for i in (0..buffer.len()).step_by(4) {
-        let mut bytes: [u8; 4] = Default::default();
-        bytes.copy_from_slice(&buffer[i..i+4]);
-        let float = f32::from_le_bytes(bytes);
-        floats.push(float);
+    let mut samples = Vec::new();
+    for i in (0..buffer.len()).step_by(8) {
+        let mut real_bytes: [u8; 4] = Default::default();
+        real_bytes.copy_from_slice(&buffer[i..i+4]);
+        let real = f32::from_le_bytes(real_bytes);
+        let mut imag_bytes: [u8; 4] = Default::default();
+        imag_bytes.copy_from_slice(&buffer[i+4..i+8]);
+        let imag = f32::from_le_bytes(imag_bytes);
+        samples.push(Complex32::new(real, imag));
     }
-    Ok(floats)
+    Ok(samples)
 }
 
 // Writes a slice of Complex32s to a file compatible
 // with Numpy's fromfile dtype=np.complex64
-fn write_file_c32(filename: &str, data: &[Complex32]) -> io::Result<()> {
+#[allow(dead_code)]
+fn write_file_c64(filename: &str, data: &[Complex32]) -> io::Result<()> {
     let mut f = File::create(filename).unwrap();
     let mut out_buf: Vec<u8> = Vec::new();
 
@@ -42,17 +46,6 @@ fn write_file_c32(filename: &str, data: &[Complex32]) -> io::Result<()> {
     }
     f.write_all(&out_buf).unwrap();
     Ok(())
-}
-
-// Converts a slice of 32 bit floats to the same
-// data as num_complex::Complex32
-fn to_complex_32(in_slice: &[f32]) -> Vec<Complex32> {
-
-    let mut samples = Vec::new();
-    for real in in_slice.iter() {
-        samples.push(Complex32::new(*real, 0.0)); // re + 0j
-    }
-    samples
 }
 
 // Cross correlation of 2 complex slices using FFTW
@@ -206,16 +199,13 @@ fn find_2d_peak(arr: Vec<Vec<Complex32>>) -> (usize, usize) {
 fn main() {
 
     // Get signals 1 and 2 to compute the caf of
-    let needle = to_complex_32(
-        &read_file_f32("../data/burst_0000_raw.f32")
-        .unwrap());
-    let haystack = to_complex_32(
-        &read_file_f32("../data/burst_0000_t+20.007860_f+88.202617.f32")
-        .unwrap());
+    let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();
+    let haystack = read_file_c64("../data/chirp_0_T+202s_F.+69.25Hz.c64").unwrap();
+    let haystack = &haystack[..needle.len()];
 
-    // -50Hz to 50Hz, 0.5Hz step
+    // -100Hz to 100Hz, 0.5Hz step
     let mut shifts = Vec::new();
-    for shift_millihz in (-50000..50000).step_by(500) {
+    for shift_millihz in (-100000..100000).step_by(500) {
         let shift = (shift_millihz as f32) / 1e3;
         shifts.push(shift);
     }
@@ -224,8 +214,7 @@ fn main() {
     let surface = caf_surface(&needle, &haystack, &shifts, 48000);
     let (freq_idx, samp_idx) = find_2d_peak(surface);
 
-    println!("Frequency: {}", shifts[freq_idx]);
-    println!("Time: {}", (samp_idx as f32) / 48e3);
-    // Write our results out to a file for Python to parse
-    // write_file_c32("results.c64", &surface[0]).unwrap();
+    // Print the results
+    println!("Frequency: {}", -shifts[freq_idx]);
+    println!("Sample offset: {}", 4096-samp_idx);
 }
