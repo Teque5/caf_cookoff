@@ -92,8 +92,8 @@ if __name__ == '__main__':
 
     fig = plt.figure(dpi=150)
     ax = fig.add_subplot(111, projection='3d')
-    x = freq_offsets
-    y = tau
+    x = tau
+    y = freq_offsets
     X, Y = np.meshgrid(x, y)
     Z = caf_surface.reshape(X.shape)
 
