@@ -229,7 +229,7 @@ blocks:
     bus_structure: null
     coordinate: [904, 348.0]
     rotation: 0
-    state: enabled
+    state: bypassed
 - name: blocks_wavfile_sink_0
   id: blocks_wavfile_sink
   parameters:
@@ -237,7 +237,7 @@ blocks:
     alias: ''
     bits_per_sample: '16'
     comment: ''
-    file: ../data/10_bursts.wav
+    file: 10_bursts.wav
     nchan: '1'
     samp_rate: samp_rate
   states:
@@ -298,6 +298,19 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [8, 108.0]
+    rotation: 0
+    state: true
+- name: import_1
+  id: import
+  parameters:
+    alias: ''
+    comment: ''
+    imports: import os
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 284.0]
     rotation: 0
     state: true
 - name: qtgui_freq_sink_x_0
@@ -658,7 +671,7 @@ blocks:
     field_9_key: ''
     field_9_type: string
     field_9_value: ''
-    filename: ../data/10_bursts
+    filename: 10_bursts
     hardware: Laptop
     license: ''
     num_extra_fields: '0'
