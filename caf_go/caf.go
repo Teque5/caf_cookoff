@@ -104,7 +104,7 @@ func xcor(apple []complex128, banana []complex128) (corr_abs []float64) {
 func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) []complex128 {
   len_ray := len(ray)
   pre := complex(0, -2 * math.Pi * fdoa / samp_rate)
-  fmt.Println(pre)
+  // fmt.Println(pre)
   for idx := 0; idx <  len_ray; idx += 1 {
     ray[idx] = ray[idx] * cmplx.Exp(pre * complex(float64(idx), 0))
   }
@@ -113,8 +113,8 @@ func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) []complex128 
 
 func amb_surf(needle []complex128, haystack []complex128, freqs_hz []float64, samp_rate float64) (surf [][]float64) {
 	time_bins := len(needle)
-	freq_bins := len(freqs_hz)
-	surf = make([][]float64, time_bins, freq_bins)
+	// freq_bins := len(freqs_hz)
+	// surf = [time_bins][freq_bins]floatmake([][]float64, time_bins, freq_bins)
 	shifted := make([]complex128, time_bins)
 	corr := make([]float64, time_bins)
 	for _, freq_hz := range freqs_hz {
@@ -148,15 +148,11 @@ func main() {
 		log.Fatal(err)
 	}
 	banana_iq := c64_to_c128(banana)[0:4096]
-	corr := xcor(apple_iq, banana_iq)
+	// corr := xcor(apple_iq, banana_iq)
 
-	freqs_hz := arange(-50, 50, 0.5)
+	freqs_hz := arange(-100, 100, 0.5)
 	// fmt.Println(freqs_hz)
 	surf := amb_surf(apple_iq, banana_iq, freqs_hz, 48000)
+	fmt.Println(len(surf))
 
-  // trash := []complex128{1,2,3,4,5,6,7,8,9,10}
-	// fmt.Println(trash)
-  fmt.Println(len(corr))
-  // z := apply_fdoa(corr, 200, 48e3)
-  // fmt.Println(z)
 }
