@@ -166,33 +166,48 @@ fn apply_freq_shifts(samples: &[Complex32], freq_shift: f32, fs: u32)
     samples
 }
 
+// Take in 2 signals and a range of frequency shifts to try
+// and compute their CAF. Return the surface as a 2D Vec
+fn caf_surface(needle: &[Complex32], haystack: &[Complex32],
+    freqs_hz: &[f32], fs: u32)
+    -> Vec<Vec<Complex32>> {
+
+    // Create our 2D surface
+    let mut surface = Vec::new();
+
+    // Run the cross correlation against the shifted ones
+    for freq in freqs_hz.iter() {
+        let shifted = apply_freq_shifts(needle, *freq, fs);
+        let xcor_res = xcor_rustfft(&shifted, haystack);
+        // let xcor_res = xcor_fftw(&shifted, haystack);
+        surface.push(xcor_res);
+    }
+
+    // Return our CAF surface
+    surface
+}
+
 fn main() {
+
+    // Get signals 1 and 2 to compute the caf of
     let needle = to_complex_32(
         &read_file_f32("../data/burst_0000_raw.f32")
         .unwrap());
-
     let haystack = to_complex_32(
         &read_file_f32("../data/burst_0000_t+20.007860_f+88.202617.f32")
         .unwrap());
 
-    let xcor_res = xcor_rustfft(&needle, &haystack);
-
-    let mut shifts = Vec::new();
     // -50Hz to 50Hz, 0.5Hz step
+    let mut shifts = Vec::new();
     for shift_millihz in (-50000..50000).step_by(500) {
         let shift = (shift_millihz as f32) / 1e3;
-        shifts.push(apply_freq_shifts(&xcor_res, shift, 48000));
-        println!("Calculating new data with shift {}", shift);
+        shifts.push(shift);
     }
-    let mut freq_test = Vec::new();
-    for i in 0..10 {
-        freq_test.push(Complex32::new((i+1) as f32, 0.0));
-    }
-    println!("~~~~~~~~~~");
-    let shifted = apply_freq_shifts(&mut freq_test, 200.0, 48000);
-    for x in shifted {
-        println!("{}", x);
-    }
-    // let xcor_res = xcor_fftw(&data, &data_shifted);
-    write_file_c32("results.c64", &xcor_res).unwrap();
+
+    // Get the CAF surface
+    let surface = caf_surface(&needle, &haystack, &shifts, 48000);
+    let freq_idx, samp_idx = find_2d_peak(surface);
+
+    // Write our results out to a file for Python to parse
+    // write_file_c32("results.c64", &surface[0]).unwrap();
 }
