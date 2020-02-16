@@ -62,7 +62,7 @@ func xcor(apple []complex128, banana []complex128) (corr []complex128) {
 
 func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) []complex128 {
   len_ray := len(ray)
-  pre := -2i * complex(math.Pi * fdoa / samp_rate, 0)
+  pre := complex(0, -2 * math.Pi * fdoa / samp_rate)
   fmt.Println(pre)
   for idx := 0; idx <  len_ray; idx += 1 {
     ray[idx] = ray[idx] * cmplx.Exp(pre * complex(float64(idx), 0))
@@ -83,8 +83,10 @@ func main() {
 	}
 	banana_iq := f32_to_c128(banana)
 	corr := xcor(apple_iq, banana_iq)
-	fmt.Println(corr[0:10])
-  z := apply_fdoa(corr[0:10], .5, 48e3)
+  trash := []complex128{1,2,3,4,5,6,7,8,9,10}
+	fmt.Println(trash)
+  fmt.Println(len(corr))
+  z := apply_fdoa(trash, 200, 48e3)
   fmt.Println(z)
 
 
