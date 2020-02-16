@@ -187,6 +187,22 @@ fn caf_surface(needle: &[Complex32], haystack: &[Complex32],
     surface
 }
 
+// 2D argmax
+fn find_2d_peak(arr: Vec<Vec<Complex32>>) -> (usize, usize) {
+    let mut max: Complex32 = Default::default();
+    let mut argmax = (0, 0);
+    for (i, row) in arr.iter().enumerate() {
+        for (j, elem) in row.iter().enumerate() {
+            if elem.norm_sqr() > max.norm_sqr() {
+                max = *elem;
+                argmax = (i, j);
+            }
+        }
+    }
+    argmax
+}
+
+
 fn main() {
 
     // Get signals 1 and 2 to compute the caf of
@@ -206,8 +222,10 @@ fn main() {
 
     // Get the CAF surface
     let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-    let freq_idx, samp_idx = find_2d_peak(surface);
+    let (freq_idx, samp_idx) = find_2d_peak(surface);
 
+    println!("Frequency: {}", shifts[freq_idx]);
+    println!("Time: {}", (samp_idx as f32) / 48e3);
     // Write our results out to a file for Python to parse
     // write_file_c32("results.c64", &surface[0]).unwrap();
 }
