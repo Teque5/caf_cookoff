@@ -61,47 +61,114 @@ pub fn write_file_c64(filename: &str, data: &[Complex32]) -> io::Result<()> {
 // Assumes inputs powers of 2
 // Naive: ifft(fft(a) * fft(b).conj())
 #[allow(dead_code)]
-fn xcor_fftw(a: &[Complex32], b: &[Complex32]) -> Vec<Complex32> {
-
-    // Sanity
-    assert!(a.len() == b.len());
-
-    // Allocations
-    let n = a.len();
-    let mut a_time = AlignedVec::new(n);
-    let mut b_time = AlignedVec::new(n);
-    let mut a_freq = AlignedVec::new(n);
-    let mut b_freq = AlignedVec::new(n);
-    let mut res_freq = AlignedVec::new(n);
-    let mut res_time = AlignedVec::new(n);
-    a_time.copy_from_slice(a);
-    b_time.copy_from_slice(b);
-
-    // Compute FFT(a), FFT(b)
-    let mut forward_planner: C2CPlan32 = C2CPlan::aligned(
-        &[n], Sign::Forward, Flag::Measure).unwrap();
-    forward_planner.c2c(&mut a_time, &mut a_freq).unwrap();
-    forward_planner.c2c(&mut b_time, &mut b_freq).unwrap();
-
-    // Take complex conjugate of b
-    for bin in b_freq.iter_mut() {
-        *bin = bin.conj();
-    }
-
-    // Calculate a*b and normalize
-    for (out, a, b) in izip!(res_freq.iter_mut(),
-                             a_freq.iter(), b_freq.iter()) {
-        *out = (a * b) / (n as f32);
-    }
-
-    // IFFT
-    let mut reverse_planner: C2CPlan32 = C2CPlan::aligned(
-        &[n], Sign::Backward, Flag::Measure).unwrap();
-    reverse_planner.c2c(&mut res_freq, &mut res_time).unwrap();
-
-    // Return IFFT output
-    res_time.to_vec()
+struct XcorFFTW {
+    n: usize, // size of a, b, c
+    // Aligned FFTW buffers
+    a: AlignedVec<Complex32>,
+    b: AlignedVec<Complex32>,
+    c: AlignedVec<Complex32>,
+    // Planners
+    forward_planner: C2CPlan32,
+    reverse_planner: C2CPlan32,
 }
+
+impl XcorFFTW {
+
+    // Constructor
+    pub fn new(n: usize) -> XcorFFTW {
+
+        // Create planners
+        let fp = C2CPlan::aligned(
+            &[n], Sign::Forward, Flag::Measure).unwrap();
+        let rp = C2CPlan::aligned(
+            &[n], Sign::Backward, Flag::Measure).unwrap();
+
+        // Return new struct
+        XcorFFTW {
+            n: n,
+            a: AlignedVec::new(n),
+            b: AlignedVec::new(n),
+            c: AlignedVec::new(n),
+            forward_planner: fp,
+            reverse_planner: rp,
+        }
+    }
+
+    // Run cross-correlation against any complex input buffers
+    // sized N
+    pub fn run(&mut self, a: &[Complex32], b: &[Complex32]) -> Vec<Complex32> {
+
+        // Sanity
+        assert!(a.len() == self.n);
+        assert!(b.len() == self.n);
+
+        // Compute FFT(a), FFT(b)
+        self.a.copy_from_slice(a);
+        self.forward_planner.c2c(&mut self.a, &mut self.b).unwrap();
+        self.a.copy_from_slice(b);
+        self.forward_planner.c2c(&mut self.a, &mut self.c).unwrap();
+
+        // Take complex conjugate of FFT(b) == self.c
+        for bin in self.c.iter_mut() {
+            *bin = bin.conj();
+        }
+
+        // Calculate FFT(a) * conj(FFT(b)) and normalize
+        for (out, a, b) in izip!(self.a.iter_mut(),
+                                 self.b.iter(), self.c.iter()) {
+
+            *out = (a * b) / (self.n as f32);
+        }
+
+        // Calculate IFFT of product and return
+        self.reverse_planner.c2c(&mut self.a, &mut self.b).unwrap();
+        self.b.to_vec()
+    }
+}
+
+
+// fn xcor_fftw(a: &[Complex32], b: &[Complex32]) -> Vec<Complex32> {
+//
+//     // Sanity
+//     assert!(a.len() == n);
+//     assert!(b.len() == n);
+//
+//     // Allocations
+//     let n = a.len();
+//     let mut a_time = AlignedVec::new(n);
+//     let mut b_time = AlignedVec::new(n);
+//     let mut a_freq = AlignedVec::new(n);
+//     let mut b_freq = AlignedVec::new(n);
+//     let mut res_freq = AlignedVec::new(n);
+//     let mut res_time = AlignedVec::new(n);
+//     a_time.copy_from_slice(a);
+//     b_time.copy_from_slice(b);
+//
+//     // Compute FFT(a), FFT(b)
+//     let mut forward_planner: C2CPlan32 = C2CPlan::aligned(
+//         &[n], Sign::Forward, Flag::Measure).unwrap();
+//     forward_planner.c2c(&mut a_time, &mut a_freq).unwrap();
+//     forward_planner.c2c(&mut b_time, &mut b_freq).unwrap();
+//
+//     // Take complex conjugate of b
+//     for bin in b_freq.iter_mut() {
+//         *bin = bin.conj();
+//     }
+//
+//     // Calculate a*b and normalize
+//     for (out, a, b) in izip!(res_freq.iter_mut(),
+//                              a_freq.iter(), b_freq.iter()) {
+//         *out = (a * b) / (n as f32);
+//     }
+//
+//     // IFFT
+//     let mut reverse_planner: C2CPlan32 = C2CPlan::aligned(
+//         &[n], Sign::Backward, Flag::Measure).unwrap();
+//     reverse_planner.c2c(&mut res_freq, &mut res_time).unwrap();
+//
+//     // Return IFFT output
+//     res_time.to_vec()
+// }
 
 // Cross correlation of 2 complex slices using RustFFT
 // Assumes inputs powers of 2
@@ -178,10 +245,11 @@ pub fn caf_surface(needle: &[Complex32], haystack: &[Complex32],
     let mut surface = Vec::new();
 
     // Run the cross correlation against the shifted ones
+    let mut xcor_fftw = XcorFFTW::new(needle.len());
     for freq in freqs_hz.iter() {
         let shifted = apply_freq_shifts(needle, *freq, fs);
-        let xcor_res = xcor_rustfft(&shifted, haystack);
-        // let xcor_res = xcor_fftw(&shifted, haystack);
+        // let xcor_res = xcor_rustfft(&shifted, haystack);
+        let xcor_res = xcor_fftw.run(&shifted, haystack);
         surface.push(xcor_res);
     }
 
