@@ -117,7 +117,7 @@ func xcor(apple []complex128, banana []complex128) (corr_abs []float64) {
 
 func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) (new_ray []complex128) {
 	// Apply frequency shift
-	precache := complex(0, -2*math.Pi*fdoa/samp_rate)
+	precache := complex(0, 2*math.Pi*fdoa/samp_rate)
 	new_ray = make([]complex128, len(ray))
 	for idx, val := range ray {
 		new_ray[idx] = val * cmplx.Exp(precache*complex(float64(idx), 0))

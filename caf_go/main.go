@@ -8,7 +8,7 @@ import (
 func main() {
 	start := time.Now()
 	data_path := "../data/"
-	apple, err := load_c64(data_path + "chirp_8_raw.c64")
+	apple, err := load_c64(data_path + "chirp_4_raw.c64")
 	if err != nil {
 		log.Fatal(err)
 	}
