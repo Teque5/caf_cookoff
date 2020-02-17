@@ -153,7 +153,7 @@ mod tests {
     fn test_chip0() {
         // Read Chirp 0 reference and modified files
         let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();
-        let haystack = read_file_c64("../data/chirp_0_T+202samp_F.+69.25Hz.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_0_T+202samp_F+69.25Hz.c64").unwrap();
         let haystack = &haystack[..needle.len()];
 
         // -100Hz to 100Hz, 0.25Hz step
@@ -172,7 +172,7 @@ mod tests {
     fn test_chirp1() {
         // Read Chirp 1 reference and modified files
         let needle = read_file_c64("../data/chirp_1_raw.c64").unwrap();
-        let haystack = read_file_c64("../data/chirp_1_T+78samp_F.+35.99Hz.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_1_T+78samp_F+35.99Hz.c64").unwrap();
         let haystack = &haystack[..needle.len()];
 
         // -50Hz to 50Hz, 1Hz step
@@ -191,7 +191,7 @@ mod tests {
     fn test_chirp2() {
         // Read Chirp 2 reference and modified files
         let needle = read_file_c64("../data/chirp_2_raw.c64").unwrap();
-        let haystack = read_file_c64("../data/chirp_2_T+169samp_F.+32.16Hz.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_2_T+169samp_F+32.16Hz.c64").unwrap();
         let haystack = &haystack[..needle.len()];
 
         // 30Hz to 35Hz, 0.05Hz step
@@ -210,7 +210,7 @@ mod tests {
     fn test_chip3() {
         // Read Chirp 3 reference and modified files
         let needle = read_file_c64("../data/chirp_3_raw.c64").unwrap();
-        let haystack = read_file_c64("../data/chirp_3_T+151samp_F.-76.22Hz.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_3_T+151samp_F-76.22Hz.c64").unwrap();
         let haystack = &haystack[..needle.len()];
 
         // -100Hz to 100Hz, 0.25Hz step
@@ -229,7 +229,7 @@ mod tests {
     fn test_chip4() {
         // Read Chirp 4 reference and modified files
         let needle = read_file_c64("../data/chirp_4_raw.c64").unwrap();
-        let haystack = read_file_c64("../data/chirp_4_T+70samp_F.+82.89Hz.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_4_T+70samp_F+82.89Hz.c64").unwrap();
         let haystack = &haystack[..needle.len()];
 
         // 80Hz to 100Hz, 0.1Hz step
@@ -248,7 +248,7 @@ mod tests {
     fn test_chip5() {
         // Read Chirp 5 reference and modified files
         let needle = read_file_c64("../data/chirp_5_raw.c64").unwrap();
-        let haystack = read_file_c64("../data/chirp_5_T+177samp_F.-92.72Hz.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_5_T+177samp_F-92.72Hz.c64").unwrap();
         let haystack = &haystack[..needle.len()];
 
         // -100Hz to 100Hz, 0.25Hz step
@@ -267,7 +267,7 @@ mod tests {
     fn test_chip6() {
         // Read Chirp 6 reference and modified files
         let needle = read_file_c64("../data/chirp_6_raw.c64").unwrap();
-        let haystack = read_file_c64("../data/chirp_6_T+15samp_F.-49.69Hz.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_6_T+15samp_F-49.69Hz.c64").unwrap();
         let haystack = &haystack[..needle.len()];
 
         // -100Hz to 100Hz, 0.25Hz step
@@ -286,7 +286,7 @@ mod tests {
     fn test_chip7() {
         // Read Chirp 7 reference and modified files
         let needle = read_file_c64("../data/chirp_7_raw.c64").unwrap();
-        let haystack = read_file_c64("../data/chirp_7_T+84samp_F.+68.26Hz.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_7_T+84samp_F+68.26Hz.c64").unwrap();
         let haystack = &haystack[..needle.len()];
 
         // -100Hz to 100Hz, 0.25Hz step
@@ -305,7 +305,7 @@ mod tests {
     fn test_chip8() {
         // Read Chirp 8 reference and modified files
         let needle = read_file_c64("../data/chirp_8_raw.c64").unwrap();
-        let haystack = read_file_c64("../data/chirp_8_T+80samp_F.-46.28Hz.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_8_T+80samp_F-46.28Hz.c64").unwrap();
         let haystack = &haystack[..needle.len()];
 
         // -100Hz to 100Hz, 0.25Hz step
@@ -325,7 +325,7 @@ mod tests {
         // Read Chirp 9 reference and modified files
         let (needle, haystack) = load_files(
             "../data/chirp_9_raw.c64",
-            "../data/chirp_9_T+176samp_F.+61.49Hz.c64");
+            "../data/chirp_9_T+176samp_F+61.49Hz.c64");
 
         // -100Hz to 100Hz, 0.5Hz step
         let shifts = gen_float_shifts(-100.0, 100.0, 0.5);
