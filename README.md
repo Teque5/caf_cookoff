@@ -17,7 +17,12 @@ Teque5 predicts that *go* and *rust* will produce the fastest implementations, b
 Both *go* and *rust* versions took similar time to construct initial filterbank versions, about 7 hours.
 
 ## Compute Results
-TBD
+| language | method          | backend | precision  |   i7-8550U 16GB ram |
+|----------|-----------------|---------|------------|:-------------------:|
+| python   | caf             | numpy   |            |                     |
+| go       | caf             | go-dsp  | complex128 |        938ms        |
+| go       | caf +goroutines | go-dsp  | complex128 |        236ms        |
+| rust     | caf             | fftw    | complex128 |        117ms        |
 
 ## Run
 ### Requires

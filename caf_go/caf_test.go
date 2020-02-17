@@ -12,5 +12,5 @@ func bench_load_c64(b *testing.B) {
   }
 }
 
-
+// runners must start with "Benchmark"
 func BenchmarkLoad(b *testing.B)  { bench_load_c64(b) }
