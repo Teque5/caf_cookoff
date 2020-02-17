@@ -97,10 +97,11 @@ fn apply_freq_shifts(samples: &[Complex64], freq_shift: f64, fs: u32)
 }
 
 // Take in 2 signals and a range of frequency shifts to try
-// and compute their CAF. Return the surface as a 2D Vec
+// and compute their CAF. Return the surface as a 2D Vec of
+// cross correlation magnitudes squared (for efficiency)
 pub fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
     freqs_hz: &[f64], fs: u32)
-    -> Vec<Vec<Complex64>> {
+    -> Vec<Vec<f64>> {
 
     // Create our 2D surface
     let mut surface = Vec::new();
@@ -108,22 +109,32 @@ pub fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
     // Run the cross correlation against the shifted ones
     let mut xcor = Xcor::new(needle.len());
     for freq in freqs_hz.iter() {
+
+        // Generate a shifted copy and cross correlate with target
         let shifted = apply_freq_shifts(needle, *freq, fs);
         let xcor_res = xcor.run(haystack, &shifted);
-        surface.push(xcor_res);
+
+        // Take the magnitude squared (for efficiency)
+        let mut xcor_mag = Vec::with_capacity(xcor_res.len());
+        for res in xcor_res.iter() {
+            xcor_mag.push(res.norm_sqr());
+        }
+
+        // Add this frequency and move to the next
+        surface.push(xcor_mag);
     }
 
     // Return our CAF surface
     surface
 }
 
-// 2D argmax
-pub fn find_2d_peak(arr: Vec<Vec<Complex64>>) -> (usize, usize) {
-    let mut max: Complex64 = Default::default();
+// 2D argmax of f64
+pub fn find_2d_peak(arr: Vec<Vec<f64>>) -> (usize, usize) {
+    let mut max = Default::default();
     let mut argmax = (0, 0);
     for (i, row) in arr.iter().enumerate() {
         for (j, elem) in row.iter().enumerate() {
-            if elem.norm_sqr() > max.norm_sqr() {
+            if *elem > max {
                 max = *elem;
                 argmax = (i, j);
             }
