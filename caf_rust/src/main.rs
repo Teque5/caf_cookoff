@@ -1,7 +1,8 @@
 // TODO
 // Use CLAP to take in two c64 files as arguments
 
-use caf_rust::caf::{read_file_c64, caf_surface, find_2d_peak};
+mod caf;
+use caf::{read_file_c64, caf_surface, find_2d_peak};
 
 fn main() {
 
