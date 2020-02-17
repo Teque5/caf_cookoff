@@ -64,7 +64,7 @@ fn apply_freq_shifts(samples: &[Complex64], freq_shift: f64, fs: u32)
     let mut samples = samples.to_vec();
 
     // Apply to each sample
-    // x *= e^(-j*2pi*fs*df*t)
+    // x *= e^(j*2pi*fs*df*t)
     let dt = 1.0 / (fs as f64);
     let exp_common = Complex64::new(0.0, 2.0 * PI * dt * freq_shift);
     for (i, samp) in samples.iter_mut().enumerate() {
