@@ -19,7 +19,7 @@ Both *go* and *rust* versions took similar time to construct initial filterbank 
 ## Compute Results
 TBD
 
-## Run (wip)
+## Run
 ### Requires
 * python3
     * scipy
@@ -30,9 +30,17 @@ TBD
     * gr-sigmf
 
 ### Procedure
+#### Rust
 ```bash
-./build_all.sh
-./benchmark.sh
+cd caf_rust
+cargo run
+cargo +nightly bench
+```
+#### Golang
+```bash
+cd caf_go
+go run .
+go test -bench=.
 ```
 
 ## Observations
