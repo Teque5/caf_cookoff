@@ -205,3 +205,31 @@ pub fn find_2d_peak(arr: Vec<Vec<Complex32>>) -> (usize, usize) {
 }
 
 
+// Tests for Chirp 0-8
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_chip0() {
+        // Read Chirp 0 reference and modified files
+        let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_0_T+202samp_F.+69.25Hz.c64").unwrap();
+        let haystack = &haystack[..needle.len()];
+
+        // -100Hz to 100Hz, 0.25Hz step
+        let mut shifts = Vec::new();
+        for shift_millihz in (-100000..100000).step_by(250) {
+            let shift = (shift_millihz as f32) / 1e3;
+            shifts.push(shift);
+        }
+
+        // Get the CAF surface
+        let surface = caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq_idx, samp_idx) = find_2d_peak(surface);
+
+        // Confirm correct results
+        assert_eq!(-shifts[freq_idx], 69.25);
+        assert_eq!(4096-samp_idx, 202);
+    }
+}
