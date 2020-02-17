@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/cmplx"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -125,6 +126,40 @@ func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) (new_ray []co
 	return
 }
 
+type amb_row struct {
+	// used for storing xcors in channels
+	xcor []float64
+	fdx int
+}
+
+func surf_row(needle []complex128, haystack []complex128, freq_hz float64, samp_rate float64, fdx int, wg *sync.WaitGroup, c chan amb_row) {
+	defer wg.Done()
+	shifted := apply_fdoa(needle, freq_hz, samp_rate)
+	fleeb := new(amb_row)
+	fleeb.xcor = xcor(shifted, haystack)
+	fleeb.fdx = fdx
+  c <- *fleeb
+}
+
+func amb_surf_concurrent(needle []complex128, haystack []complex128, freqs_hz []float64, samp_rate float64) ([][]float64) {
+	// Create cross ambiguity surface (filterbank method) + concurrency
+	var wg sync.WaitGroup
+	len_ray := len(needle)
+	len_freq := len(freqs_hz)
+	c := make(chan amb_row, len_freq)
+	surf := make([][]float64, len_freq, len_ray)
+	for fdx, freq_hz := range freqs_hz {
+		wg.Add(1)
+		go surf_row(needle, haystack, freq_hz, samp_rate, fdx, &wg, c)
+	}
+	wg.Wait()
+	close(c)
+	for fleeb := range(c) {
+		surf[fleeb.fdx] = fleeb.xcor
+	}
+	return surf
+}
+
 func amb_surf(needle []complex128, haystack []complex128, freqs_hz []float64, samp_rate float64) ([][]float64) {
 	// Create cross ambiguity surface (filterbank method)
 	len_ray := len(needle)
@@ -167,18 +202,25 @@ func main() {
 		log.Fatal(err)
 	}
 	apple_iq := c64_to_c128(apple)
-	banana, err := load_c64(data_path + "chirp_8_T+80samp_F-46.28Hz.c64")
+	banana, err := load_c64(data_path + "chirp_4_T+70samp_F+82.89Hz.c64")
 	if err != nil {
 		log.Fatal(err)
 	}
 	banana_iq := c64_to_c128(banana)[0:4096]
 
-	freqs_hz := arange(-100, 100, .4)
+	freqs_hz := arange(-100, 100, .2)
 	start := time.Now()
 	surf := amb_surf(apple_iq, banana_iq, freqs_hz, 48000)
 	t := time.Now()
 	elapsed := t.Sub(start)
 	log.Printf("surf calculated in %s\n", elapsed)
+
+	start = time.Now()
+	surf = amb_surf_concurrent(apple_iq, banana_iq, freqs_hz, 48000)
+	t = time.Now()
+	elapsed = t.Sub(start)
+	log.Printf("surf calculated in %s (concurrent)\n", elapsed)
+
 	fdx, tdx, max := find_2d_peak(surf)
 	log.Println("caf result:", len(apple_iq)-tdx, "samples", freqs_hz[fdx],"hz @ amb =",max)
 
