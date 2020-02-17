@@ -16,8 +16,8 @@ use fftw::array::AlignedVec;
 use fftw::plan::{C2CPlan, C2CPlan32};
 use fftw::types::{Sign, Flag};
 use itertools::izip;
-use num_complex::{Complex32, Complex};
-use rustfft::{FFTplanner, num_traits::Zero, FFT};
+use num_complex::{Complex32};
+use rustfft::{FFTplanner, FFT};
 
 // Reads a file of packed 32 bit floats and returns
 // a Vec of its contents
@@ -128,8 +128,6 @@ impl XcorFFTW {
     }
 }
 
-
-
 // Cross correlation of 2 complex slices using RustFFT
 // Assumes inputs powers of 2
 // Naive: ifft(fft(a) * fft(b).conj())
@@ -212,7 +210,7 @@ fn apply_freq_shifts(samples: &[Complex32], freq_shift: f32, fs: u32)
     // Apply to each sample
     // x *= e^(-j*2pi*fs*df*t)
     let dt = 1.0 / (fs as f32);
-    let exp_common = Complex32::new(0.0, -2.0 * PI * dt * freq_shift);
+    let exp_common = Complex32::new(0.0, 2.0 * PI * dt * freq_shift);
     for (i, samp) in samples.iter_mut().enumerate() {
         let exp = Complex32::new(i as f32, 0.0) * exp_common;
         *samp *= Complex32::exp(&exp);
@@ -232,12 +230,12 @@ pub fn caf_surface(needle: &[Complex32], haystack: &[Complex32],
     let mut surface = Vec::new();
 
     // Run the cross correlation against the shifted ones
-    // let mut xcor_fftw = XcorFFTW::new(needle.len());
-    let mut xcor_rustfft = XcorRustFFT::new(needle.len());
+    let mut xcor_fftw = XcorFFTW::new(needle.len());
+    // let mut xcor_rustfft = XcorRustFFT::new(needle.len());
     for freq in freqs_hz.iter() {
         let shifted = apply_freq_shifts(needle, *freq, fs);
-        // let xcor_res = xcor_fftw.run(&shifted, haystack);
-        let xcor_res = xcor_rustfft.run(&shifted, haystack);
+        let xcor_res = xcor_fftw.run(haystack, &shifted);
+        // let xcor_res = xcor_rustfft.run(haystack, &shifted);
         surface.push(xcor_res);
     }
 
@@ -285,7 +283,7 @@ mod tests {
         let (freq_idx, samp_idx) = find_2d_peak(surface);
 
         // Confirm correct results
-        assert_eq!(-shifts[freq_idx], 69.25);
-        assert_eq!(4096-samp_idx, 202);
+        assert_eq!(shifts[freq_idx], 69.25);
+        assert_eq!(samp_idx, 202);
     }
 }

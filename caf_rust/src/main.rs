@@ -22,7 +22,7 @@ fn main() {
     let (freq_idx, samp_idx) = find_2d_peak(surface);
 
     // Print the results
-    println!("Frequency offset: {:.1}Hz", -shifts[freq_idx]);
+    println!("Frequency offset: {:.1}Hz", shifts[freq_idx]);
     println!("Time offset: {} samples ({:.3}ms)",
-        4096-samp_idx, ((4096-samp_idx) as f32) / 48.0);
+        samp_idx, (samp_idx as f32) / 48.0);
 }

@@ -23,7 +23,7 @@ mod caf_benches {
         b.iter(|| black_box({
             // Get the CAF surface
             let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-            let (freq_idx, samp_idx) = find_2d_peak(surface);
+            find_2d_peak(surface);
         }));
     }
 }
