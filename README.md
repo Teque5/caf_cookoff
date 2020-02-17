@@ -13,7 +13,10 @@ We are trying to answer the following questions:
 ## Hypothesis
 Teque5 predicts that *go* and *rust* will produce the fastest implementations, but go will have the simplist parralelized version.
 
-## Results
+## Time to Minimum Viable Product
+Both *go* and *rust* versions took similar time to construct initial filterbank versions, about 7 hours.
+
+## Compute Results
 TBD
 
 ## Run (wip)
@@ -31,6 +34,10 @@ TBD
 ./build_all.sh
 ./benchmark.sh
 ```
+
+## Observations
+* Go has fftw bindings or there is a fft library in go-dsp, but the latter isn't a full implementation and the former has quite a bit of complexity. I am disappointed such a basic tool isn't better integrated. The go-dsp implmentation on supports `complex128` types -> bizzare.
+* Go and Python both have complex types, but rust uses a struct with two floats.
 
 ## References
 1) S. Stein, Algorithms for ambiguity function processing,  IEEE Trans. Acoust., Speech, and Signal Processing, vol. ASSP-29, pp. 588 - 599, June 1981.

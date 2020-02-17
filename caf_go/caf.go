@@ -1,15 +1,32 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
+	"github.com/mjibson/go-dsp/fft"
 	"log"
+	"math"
 	"math/cmplx"
 	"os"
-	"encoding/binary"
-	"math"
 	"time"
-	"github.com/mjibson/go-dsp/fft"
 )
+
+func dump_surf(path string, surf [][]float64) (err error) {
+	// dump 2d ambiguity surface to a file
+	handle, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("cannot open handle %v", err)
+	}
+	defer handle.Close()
+	for _, row := range surf {
+		err = binary.Write(handle, binary.LittleEndian, &row)
+		if err != nil {
+			return
+		}
+	}
+	fmt.Println("wrote surf to file", len(surf), len(surf[0]))
+	return
+}
 
 func load_c64(path string) (ray []complex64, err error) {
 	// Load complex file
@@ -78,19 +95,24 @@ func c64_to_c128(ray_i []complex64) (ray_iq []complex128) {
 func xcor(apple []complex128, banana []complex128) (corr_abs []float64) {
 	// Standard crosscorrelation implementation
 	len_ray := len(apple)
+	// create array for zero-padding
+
+	zero_pad := make([]complex128, len_ray)
 	if len(banana) != len_ray {
 		panic("input arrays should be same size")
 	}
-	apple_fft := fft.FFT(apple)
-	banana_fft := fft.FFT(banana)
-	fleeb := make([]complex128, len_ray)
-
-	for idx := 0; idx < len_ray; idx += 1 {
+	apple_padded := append(apple, zero_pad...)
+	banana_padded := append(zero_pad, banana...)
+	apple_fft := fft.FFT(apple_padded)
+	banana_fft := fft.FFT(banana_padded)
+	fleeb := make([]complex128, 2*len_ray)
+	for idx, _ := range apple_fft {
 		fleeb[idx] = apple_fft[idx] * cmplx.Conj(banana_fft[idx])
 	}
-	corr := make([]complex128, len_ray)
-	corr_abs = make([]float64, len_ray)
-	corr = fft.IFFT(fleeb)
+	// fmt.Println(banana_fft)
+	// corr := make([]complex128, len_ray)
+	corr_abs = make([]float64, 2*len_ray)
+	corr := fft.IFFT(fleeb)
 
 	for idx, val := range corr {
 		corr_abs[idx] = cmplx.Abs(val)
@@ -98,27 +120,29 @@ func xcor(apple []complex128, banana []complex128) (corr_abs []float64) {
 	return
 }
 
-func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) []complex128 {
+func apply_fdoa(ray []complex128, fdoa float64, samp_rate float64) (new_ray []complex128) {
 	// Apply frequency shift
-	len_ray := len(ray)
 	precache := complex(0, -2*math.Pi*fdoa/samp_rate)
-	for idx := 0; idx < len_ray; idx += 1 {
-		ray[idx] = ray[idx] * cmplx.Exp(precache*complex(float64(idx), 0))
-	}
-	return ray
-}
-
-func amb_surf(needle []complex128, haystack []complex128, freqs_hz []float64, samp_rate float64) (surf [][]float64) {
-	// Create cross ambiguity surface (filterbank method)
-	len_ray := len(needle)
-	shifted := make([]complex128, len_ray)
-	corr := make([]float64, len_ray)
-	for _, freq_hz := range freqs_hz {
-		shifted = apply_fdoa(needle, freq_hz, samp_rate)
-		corr = xcor(shifted, haystack)
-		surf = append(surf, corr)
+	new_ray = make([]complex128, len(ray))
+	for idx, val := range ray {
+		new_ray[idx] = val * cmplx.Exp(precache*complex(float64(idx), 0))
 	}
 	return
+}
+
+func amb_surf(needle []complex128, haystack []complex128, freqs_hz []float64, samp_rate float64) ([][]float64) {
+	// Create cross ambiguity surface (filterbank method)
+	len_ray := len(needle)
+	len_freq := len(freqs_hz)
+	shifted := make([]complex128, len_ray)
+	// corr := make([]float64, len_ray)
+	surf := make([][]float64, len_freq, len_ray)
+	for fdx, freq_hz := range freqs_hz {
+		shifted = apply_fdoa(needle, freq_hz, samp_rate)
+		// corr =
+		surf[fdx] = xcor(shifted, haystack)
+	}
+	return surf
 }
 
 func arange(start, stop, step float64) (rnge []float64) {
@@ -149,6 +173,7 @@ func find_2d_peak(ray2d [][]float64) (best_idx int, best_jdx int) {
 }
 
 func main() {
+
 	start := time.Now()
 	data_path := "../data/"
 	apple, err := load_c64(data_path + "chirp_4_raw.c64")
@@ -162,12 +187,17 @@ func main() {
 	}
 	banana_iq := c64_to_c128(banana)[0:4096]
 
-	freqs_hz := arange(-80, 80, 0.5)
+	freqs_hz := arange(-100, 100, 0.5)
 	surf := amb_surf(apple_iq, banana_iq, freqs_hz, 48000)
-	// fmt.Println(surf)
 	fdx, tdx := find_2d_peak(surf)
-	fmt.Println("out", 4096-tdx, freqs_hz[fdx])
+	fmt.Println("result:", len(apple_iq)-tdx, "samples", freqs_hz[fdx],"hz")
 	t := time.Now()
 	elapsed := t.Sub(start)
 	fmt.Println(elapsed)
+	err = dump_surf("/tmp/derp", surf)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("done")
+
 }
