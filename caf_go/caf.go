@@ -24,7 +24,7 @@ func dump_surf(path string, surf [][]float64) (err error) {
 			return
 		}
 	}
-	fmt.Printf("wrote (%vx%v) surf to file\n", len(surf), len(surf[0]))
+	log.Printf("wrote (%vx%v) surf to file\n", len(surf), len(surf[0]))
 	return
 }
 
@@ -46,7 +46,7 @@ func load_c64(path string) (ray []complex64, err error) {
 	if err != nil {
 		log.Fatalf("error reading floats %v", err)
 	}
-	// log.Printf("loaded %f samples", sample_count)
+	log.Printf("loaded %v samples from %v\n", sample_count, path)
 	return ray, nil
 }
 
@@ -68,7 +68,7 @@ func load_f32(path string) (ray []float32, err error) {
 	if err != nil {
 		log.Fatalf("error reading floats %v", err)
 	}
-	// log.Printf("loaded %f samples", sample_count)
+	log.Printf("loaded %v samples from %v\n", sample_count, path)
 	return ray, nil
 }
 
@@ -95,8 +95,6 @@ func c64_to_c128(ray_i []complex64) (ray_iq []complex128) {
 func xcor(apple []complex128, banana []complex128) (corr_abs []float64) {
 	// Standard crosscorrelation implementation
 	len_ray := len(apple)
-	// create array for zero-padding
-
 	zero_pad := make([]complex128, len_ray)
 	if len(banana) != len_ray {
 		panic("input arrays should be same size")
@@ -109,11 +107,8 @@ func xcor(apple []complex128, banana []complex128) (corr_abs []float64) {
 	for idx, _ := range apple_fft {
 		fleeb[idx] = apple_fft[idx] * cmplx.Conj(banana_fft[idx])
 	}
-	// fmt.Println(banana_fft)
-	// corr := make([]complex128, len_ray)
-	corr_abs = make([]float64, 2*len_ray)
 	corr := fft.IFFT(fleeb)
-
+	corr_abs = make([]float64, len(corr))
 	for idx, val := range corr {
 		corr_abs[idx] = cmplx.Abs(val)
 	}
@@ -135,17 +130,16 @@ func amb_surf(needle []complex128, haystack []complex128, freqs_hz []float64, sa
 	len_ray := len(needle)
 	len_freq := len(freqs_hz)
 	shifted := make([]complex128, len_ray)
-	// corr := make([]float64, len_ray)
 	surf := make([][]float64, len_freq, len_ray)
 	for fdx, freq_hz := range freqs_hz {
 		shifted = apply_fdoa(needle, freq_hz, samp_rate)
-		// corr =
 		surf[fdx] = xcor(shifted, haystack)
 	}
 	return surf
 }
 
 func arange(start, stop, step float64) (rnge []float64) {
+	// implement np.arange()
 	for x := start; x < stop; x += step {
 		rnge = append(rnge, x)
 	}
@@ -160,7 +154,6 @@ func find_2d_peak(ray2d [][]float64) (best_idx int, best_jdx int, max float64) {
 				max = elem
 				best_idx = idx
 				best_jdx = jdx
-				// fmt.Println("up", fmax, tmax)
 			}
 		}
 	}
@@ -168,8 +161,6 @@ func find_2d_peak(ray2d [][]float64) (best_idx int, best_jdx int, max float64) {
 }
 
 func main() {
-
-
 	data_path := "../data/"
 	apple, err := load_c64(data_path + "chirp_8_raw.c64")
 	if err != nil {
@@ -187,14 +178,14 @@ func main() {
 	surf := amb_surf(apple_iq, banana_iq, freqs_hz, 48000)
 	t := time.Now()
 	elapsed := t.Sub(start)
-	fmt.Printf("surf calculated in %s\n", elapsed)
+	log.Printf("surf calculated in %s\n", elapsed)
 	fdx, tdx, max := find_2d_peak(surf)
-	fmt.Println("caf result:", len(apple_iq)-tdx, "samples", freqs_hz[fdx],"hz @ amb =",max)
+	log.Println("caf result:", len(apple_iq)-tdx, "samples", freqs_hz[fdx],"hz @ amb =",max)
 
 	err = dump_surf("/tmp/derp", surf)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("done")
+	log.Println("done")
 
 }
