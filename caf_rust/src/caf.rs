@@ -1,27 +1,27 @@
 // TODO
-// Migrate from Complex32 to Complex64 to be on parity with Go implementation
+// Migrate from Complex64 to Complex64 to be on parity with Go implementation
 // Add option for FFTW/RustFFT for direct bench comparison
 // Multithreading FFTs and maybe frequency shift calculations
 // impl some of these on the types directly
-//      xcor, freq shift, write_file on Complex32 slice
-//      2d peak on Vec<Vec<Complex32>> if possible
+//      xcor, freq shift, write_file on Complex64 slice
+//      2d peak on Vec<Vec<Complex64>> if possible
 
 use std::io;
 use std::io::prelude::*;
-use std::f32::consts::PI;
+use std::f64::consts::PI;
 use std::fs::File;
 use std::sync::Arc;
 
 use fftw::array::AlignedVec;
-use fftw::plan::{C2CPlan, C2CPlan32};
+use fftw::plan::{C2CPlan, C2CPlan64};
 use fftw::types::{Sign, Flag};
 use itertools::izip;
-use num_complex::{Complex32};
+use num_complex::{Complex64};
 use rustfft::{FFTplanner, FFT};
 
 // Reads a file of packed 32 bit floats and returns
 // a Vec of its contents
-pub fn read_file_c64(filename: &str) -> io::Result<Vec<Complex32>> {
+pub fn read_file_c64(filename: &str) -> io::Result<Vec<Complex64>> {
     let mut f = File::open(filename)?;
     let mut buffer = Vec::new();
     f.read_to_end(&mut buffer)?;
@@ -33,23 +33,23 @@ pub fn read_file_c64(filename: &str) -> io::Result<Vec<Complex32>> {
         let mut imag_bytes: [u8; 4] = Default::default();
         imag_bytes.copy_from_slice(&buffer[i+4..i+8]);
         let imag = f32::from_le_bytes(imag_bytes);
-        samples.push(Complex32::new(real, imag));
+        samples.push(Complex64::new(real as f64, imag as f64));
     }
     Ok(samples)
 }
 
-// Writes a slice of Complex32s to a file compatible
+// Writes a slice of Complex64s to a file compatible
 // with Numpy's fromfile dtype=np.complex64
 #[allow(dead_code)]
-pub fn write_file_c64(filename: &str, data: &[Complex32]) -> io::Result<()> {
+pub fn write_file_complex(filename: &str, data: &[Complex64]) -> io::Result<()> {
     let mut f = File::create(filename).unwrap();
     let mut out_buf: Vec<u8> = Vec::new();
 
     for bin in data.iter() {
-        for byte in f32::to_le_bytes(bin.re).iter() {
+        for byte in f64::to_le_bytes(bin.re).iter() {
             out_buf.push(*byte);
         }
-        for byte in f32::to_le_bytes(bin.im).iter() {
+        for byte in f64::to_le_bytes(bin.im).iter() {
             out_buf.push(*byte);
         }
     }
@@ -64,12 +64,12 @@ pub fn write_file_c64(filename: &str, data: &[Complex32]) -> io::Result<()> {
 struct XcorFFTW {
     n: usize, // size of a, b, c
     // Aligned FFTW buffers
-    a: AlignedVec<Complex32>,
-    b: AlignedVec<Complex32>,
-    c: AlignedVec<Complex32>,
+    a: AlignedVec<Complex64>,
+    b: AlignedVec<Complex64>,
+    c: AlignedVec<Complex64>,
     // Planners
-    forward_planner: C2CPlan32,
-    reverse_planner: C2CPlan32,
+    forward_planner: C2CPlan64,
+    reverse_planner: C2CPlan64,
 }
 
 impl XcorFFTW {
@@ -98,7 +98,7 @@ impl XcorFFTW {
     // Run cross-correlation against any complex input buffers
     // sized N
     #[allow(dead_code)]
-    pub fn run(&mut self, a: &[Complex32], b: &[Complex32]) -> Vec<Complex32> {
+    pub fn run(&mut self, a: &[Complex64], b: &[Complex64]) -> Vec<Complex64> {
 
         // Sanity
         assert!(a.len() == self.n);
@@ -119,7 +119,7 @@ impl XcorFFTW {
         for (out, a, b) in izip!(self.a.iter_mut(),
                                  self.b.iter(), self.c.iter()) {
 
-            *out = (a * b) / (self.n as f32);
+            *out = (a * b) / (self.n as f64);
         }
 
         // Calculate IFFT of product and return
@@ -135,12 +135,12 @@ impl XcorFFTW {
 struct XcorRustFFT {
     n: usize, // size of a, b, c
     // Preallocated buffers
-    a: Vec<Complex32>,
-    b: Vec<Complex32>,
-    c: Vec<Complex32>,
+    a: Vec<Complex64>,
+    b: Vec<Complex64>,
+    c: Vec<Complex64>,
     // Planners
-    fft: Arc<dyn FFT<f32>>,
-    ifft: Arc<dyn FFT<f32>>,
+    fft: Arc<dyn FFT<f64>>,
+    ifft: Arc<dyn FFT<f64>>,
 }
 
 impl XcorRustFFT {
@@ -169,7 +169,7 @@ impl XcorRustFFT {
     // Run cross-correlation against any complex input buffers
     // sized N
     #[allow(dead_code)]
-    pub fn run(&mut self, a: &[Complex32], b: &[Complex32]) -> Vec<Complex32> {
+    pub fn run(&mut self, a: &[Complex64], b: &[Complex64]) -> Vec<Complex64> {
 
         // Sanity
         assert!(a.len() == self.n);
@@ -190,7 +190,7 @@ impl XcorRustFFT {
         for (out, a, b) in izip!(self.a.iter_mut(),
                                  self.b.iter(), self.c.iter()) {
 
-            *out = (a * b) / (self.n as f32);
+            *out = (a * b) / (self.n as f64);
         }
 
         // Calculate IFFT of product and return
@@ -201,19 +201,19 @@ impl XcorRustFFT {
 
 // Takes in a slice of samples at samp_rate and applies
 // a frequency shift to it
-fn apply_freq_shifts(samples: &[Complex32], freq_shift: f32, fs: u32)
-    -> Vec<Complex32> {
+fn apply_freq_shifts(samples: &[Complex64], freq_shift: f64, fs: u32)
+    -> Vec<Complex64> {
 
     // Convert (back) to vec
     let mut samples = samples.to_vec();
 
     // Apply to each sample
     // x *= e^(-j*2pi*fs*df*t)
-    let dt = 1.0 / (fs as f32);
-    let exp_common = Complex32::new(0.0, 2.0 * PI * dt * freq_shift);
+    let dt = 1.0 / (fs as f64);
+    let exp_common = Complex64::new(0.0, 2.0 * PI * dt * freq_shift);
     for (i, samp) in samples.iter_mut().enumerate() {
-        let exp = Complex32::new(i as f32, 0.0) * exp_common;
-        *samp *= Complex32::exp(&exp);
+        let exp = Complex64::new(i as f64, 0.0) * exp_common;
+        *samp *= Complex64::exp(&exp);
     }
 
     // Return our shifted samples
@@ -222,9 +222,9 @@ fn apply_freq_shifts(samples: &[Complex32], freq_shift: f32, fs: u32)
 
 // Take in 2 signals and a range of frequency shifts to try
 // and compute their CAF. Return the surface as a 2D Vec
-pub fn caf_surface(needle: &[Complex32], haystack: &[Complex32],
-    freqs_hz: &[f32], fs: u32)
-    -> Vec<Vec<Complex32>> {
+pub fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
+    freqs_hz: &[f64], fs: u32)
+    -> Vec<Vec<Complex64>> {
 
     // Create our 2D surface
     let mut surface = Vec::new();
@@ -244,8 +244,8 @@ pub fn caf_surface(needle: &[Complex32], haystack: &[Complex32],
 }
 
 // 2D argmax
-pub fn find_2d_peak(arr: Vec<Vec<Complex32>>) -> (usize, usize) {
-    let mut max: Complex32 = Default::default();
+pub fn find_2d_peak(arr: Vec<Vec<Complex64>>) -> (usize, usize) {
+    let mut max: Complex64 = Default::default();
     let mut argmax = (0, 0);
     for (i, row) in arr.iter().enumerate() {
         for (j, elem) in row.iter().enumerate() {
@@ -274,7 +274,7 @@ mod tests {
         // -100Hz to 100Hz, 0.25Hz step
         let mut shifts = Vec::new();
         for shift_millihz in (-100000..100000).step_by(250) {
-            let shift = (shift_millihz as f32) / 1e3;
+            let shift = (shift_millihz as f64) / 1e3;
             shifts.push(shift);
         }
 

@@ -13,7 +13,7 @@ fn main() {
     // -100Hz to 100Hz, 0.5Hz step
     let mut shifts = Vec::new();
     for shift_millihz in (-100000..100000).step_by(500) {
-        let shift = (shift_millihz as f32) / 1e3;
+        let shift = (shift_millihz as f64) / 1e3;
         shifts.push(shift);
     }
 
@@ -24,5 +24,5 @@ fn main() {
     // Print the results
     println!("Frequency offset: {:.1}Hz", shifts[freq_idx]);
     println!("Time offset: {} samples ({:.3}ms)",
-        samp_idx, (samp_idx as f32) / 48.0);
+        samp_idx, (samp_idx as f64) / 48.0);
 }
