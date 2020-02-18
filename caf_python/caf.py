@@ -1,11 +1,39 @@
 #!/usr/bin/env python3
 import numpy as np
 import time
+from scipy import signal
+import numba
 
-def caf(needle, haystack, frequency_offsets, sample_rate=1):
+@numba.jit(forceobj=True)
+def xcor_turbo(apple: np.ndarray, banana: np.ndarray) -> np.ndarray:
+    '''1D Cross-Correlation'''
+    corr = signal.correlate(apple, banana, mode='same', method='fft')
+    return np.abs(corr)
+
+def xcor(apple, banana):
+    '''1D Cross-Correlation'''
+    corr = signal.correlate(apple, banana, mode='same', method='fft')
+    return np.abs(corr)
+
+@numba.njit
+def apply_fdoa_turbo(ray: np.ndarray, fdoa: np.float64, samp_rate: np.float64) -> np.ndarray:
+    precache = 2j * np.pi * fdoa / samp_rate
+    new_ray = np.empty_like(ray)
+    for idx, val in enumerate(ray):
+        new_ray[idx] = val * np.exp(precache * idx)
+    return new_ray
+
+# @numba.jit
+def apply_fdoa(ray, fdoa, samp_rate):
+    precache = 2j * np.pi * fdoa / samp_rate
+    new_ray = np.empty_like(ray)
+    for idx, val in enumerate(ray):
+        new_ray[idx] = val * np.exp(precache * idx)
+    return new_ray
+
+def amb_surf(needle, haystack, freqs_hz, samp_rate):
     '''
-    Returns the cross ambiguity function surface for a given signal of interest to be localized in a capture.
-    Parameters
+    Returns the cross ambiguity function surface for a pair of signals.
 
     Parameters
     ----------
@@ -13,66 +41,55 @@ def caf(needle, haystack, frequency_offsets, sample_rate=1):
         The signal of interest to localize within the haystack.
     haystack : np.ndarray
         The broader capture within which to localize the needle.
-    frequency_offsets : np.ndarray
+    freqs_hz : np.ndarray
         The frequency offsets to use in computing the CAF.
-    sample_rate : float
+    samp_rate : float
         The sample rate for both the needle and the haystack.
 
     Returns
     -------
-    caf : np.ndarray
+    surf : np.ndarray
         2D array of correlations of the needle in the haystack over frequency x lag.
     '''
-    num_needle_samples = len(needle)
-    num_haystack_samples = len(haystack)
-    num_frequency_offsets = len(frequency_offsets)
-
-    freq_shift_vectors = np.exp(1j*2*np.pi*np.outer(frequency_offsets, np.arange(num_needle_samples) / sample_rate))
-    shifted_needle = np.multiply(freq_shift_vectors, needle)
-
-    shift_vectors = np.exp(1j*2*np.pi*np.outer(frequency_offsets, np.arange(num_needle_samples) / sample_rate))
-    translated_soi = np.multiply(shift_vectors, soi_samples)
-    del shift_vectors
-    caf_surface = np.zeros((num_frequency_offsets, num_needle_samples + num_haystack_samples - 1), dtype=np.float64)
-
-    for i in range(num_freq_offsets):
-        caf_surface[i, :] = np.abs(np.correlate(search_capture_samples, (translated_soi[i, :]), mode='full'))
-
-    return caf_surface
+    len_needle = len(needle)
+    len_haystack = len(haystack)
+    len_freqs = len(freqs_hz)
+    assert len_needle == len_haystack
+    surf = np.empty((len_freqs, len_needle))
+    for fdx, freq_hz in enumerate(freqs_hz):
+        shifted = apply_fdoa_turbo(needle, freq_hz, samp_rate)
+        surf[fdx] = xcor_turbo(shifted, haystack)
+    return surf
 
 if __name__ == '__main__':
+    # TODO: Ambiguity plot is broken at the moment
     import matplotlib.pyplot as plt
     import os
-    from mpl_toolkits.mplot3d import Axes3D
-    from matplotlib import cm
+    # from mpl_toolkits.mplot3d import Axes3D
 
     start_time = time.time()
     data_dir = '../data'
-    search_capture_filename = 'chirp_4_T+70samp_F+82.89Hz.c64'
-    soi_filename = 'chirp_4_raw.c64'
-    soi_samples = np.fromfile(os.path.join(data_dir, soi_filename), dtype=np.complex64)
-    search_capture_samples = np.fromfile(os.path.join(data_dir, search_capture_filename), dtype=np.complex64)
+    needle_filename = 'chirp_4_raw.c64'
+    haystack_filename = 'chirp_4_T+70samp_F+82.89Hz.c64'
+    print(haystack_filename)
+    needle_samples = np.fromfile(os.path.join(data_dir, needle_filename), dtype=np.complex64)
+    haystack_samples = np.fromfile(os.path.join(data_dir, haystack_filename), dtype=np.complex64)[0:4096]
+    len_needle = len(needle_samples)
 
-    sample_rate = 48e3
+    samp_rate = 48e3
+    freq_offsets = np.arange(-100, 100, 0.5)
 
-    freq_offset_min = -120
-    freq_offset_max = 120
-    num_freq_offsets = 400
-
-    freq_offsets = np.linspace(freq_offset_min, freq_offset_max, num_freq_offsets)
-
-
-    caf_surface = caf(needle=soi_samples,
-                      haystack=search_capture_samples,
-                      frequency_offsets=freq_offsets,
-                      sample_rate=sample_rate)
+    start = time.time()
+    surf = amb_surf(needle_samples, haystack_samples, freq_offsets, samp_rate)
+    print('elap',time.time()-start)
+    print(surf.shape, surf.dtype)
 
 
-    peak = np.unravel_index(np.argmax(caf_surface), caf_surface.shape)
+    fmax, tmax = np.unravel_index(surf.argmax(), surf.shape)
 
-    tau_max = peak[1] - len(soi_samples) + 1
-    tau = np.arange(-len(soi_samples) + 1, len(search_capture_samples))
-    freq_max = freq_offsets[peak[0]]
+    tau_max = len(needle_samples)//2 - tmax
+    freq_max = freq_offsets[fmax]
+    print(tau_max, freq_max)
 
     stop_time = time.time()
 
@@ -80,8 +97,12 @@ if __name__ == '__main__':
 
     print('CAF compute time: {} sec'.format(run_time))
 
+    extents = [
+        -len_needle//2, len_needle//2,
+        100, -100]
+
     plt.figure(dpi=150)
-    plt.imshow(np.abs(caf_surface), aspect='auto', interpolation='nearest', extent=[-len(soi_samples)+1, len(search_capture_samples), freq_offsets[-1], freq_offsets[0]])
+    plt.imshow(surf, aspect='auto', interpolation='nearest', extent=extents)
     plt.ylabel('Frequency offset [Hz]')
     plt.xlabel('Time offset [samples]')
     plt.gca().invert_yaxis()
@@ -91,16 +112,16 @@ if __name__ == '__main__':
     print('Time lag: {:d} samples'.format(tau_max))
     print('Frequency offset: {:.2f} Hz'.format(freq_max))
 
-    fig = plt.figure(dpi=150)
-    ax = fig.add_subplot(111, projection='3d')
-    x = tau
-    y = freq_offsets
-    X, Y = np.meshgrid(x, y)
-    Z = caf_surface.reshape(X.shape)
-
-    ax.plot_surface(X, Y, Z, cmap=cm.inferno)
-
-    ax.set_xlabel('Frequency offset [Hz]')
-    ax.set_ylabel('Lag [samples]')
-    ax.set_zlabel('Correlation')
-    plt.show()
+    # fig = plt.figure(dpi=150)
+    # ax = fig.add_subplot(111, projection='3d')
+    # x = tau
+    # y = freq_offsets
+    # X, Y = np.meshgrid(x, y)
+    # Z = surf.reshape(X.shape)
+    #
+    # ax.plot_surface(X, Y, Z, cmap='viridis')
+    #
+    # ax.set_xlabel('Frequency offset [Hz]')
+    # ax.set_ylabel('Lag [samples]')
+    # ax.set_zlabel('Correlation')
+    # plt.show()

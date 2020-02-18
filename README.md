@@ -17,14 +17,19 @@ Teque5 predicts that *go* and *rust* will produce the fastest implementations, b
 Both *go* and *rust* versions took similar time to construct initial filterbank versions, about 7 hours.
 
 ## Compute Results
-| language | method          | backend      | precision |   i7-8550U 16GB |
-|----------|-----------------|--------------|:---------:|:---------------:|
-| python   | fb             | scipy.signal |  c128     |     4336ms      |
-| go       | fb             | go-dsp       |  c128     |      938ms      |
-| go       | fb +goroutines | go-dsp       |  c128     |      236ms      |
-| rust*    | fb             | fftw         |  c128     |      117ms      |
+| language | method         | backend      | precision | i7-8550U 16GB |
+|----------|----------------|--------------|:---------:|:-------------:|
+| python   | fb             | scipy.signal |  c128     |    4336ms     |
+| python   | fb +numba0     | scipy.signal |  c128     |     696ms     |
+| go       | fb             | go-dsp       |  c128     |     938ms     |
+| python   | fb +numba1     | scipy.signal |  c128     |     622ms     |
+| go       | fb +goroutines | go-dsp       |  c128     |     236ms     |
+| rust*    | fb             | fftw         |  c128     |     117ms     |
 
-Note that rust implementation currently doesn't pad correctly.
+* rust* implementation currently doesn't pad correctly.
+* fb == caf filterbank implementation
+* numba0 is naive wrapping of functions with `@numba.jit`
+* numba1 is `@numba.njit` with type hinting
 
 ## Run
 ### Requires
