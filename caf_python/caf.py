@@ -2,13 +2,26 @@
 import numpy as np
 import time
 from scipy import signal
-# import numba
+import numba
 
-# @numba.jit
+@numba.jit(forceobj=True)
+def xcor_turbo(apple: np.ndarray, banana: np.ndarray) -> np.ndarray:
+    '''1D Cross-Correlation'''
+    corr = signal.correlate(apple, banana, mode='same', method='fft')
+    return np.abs(corr)
+
 def xcor(apple, banana):
     '''1D Cross-Correlation'''
     corr = signal.correlate(apple, banana, mode='same', method='fft')
     return np.abs(corr)
+
+@numba.njit
+def apply_fdoa_turbo(ray: np.ndarray, fdoa: np.float64, samp_rate: np.float64) -> np.ndarray:
+    precache = 2j * np.pi * fdoa / samp_rate
+    new_ray = np.empty_like(ray)
+    for idx, val in enumerate(ray):
+        new_ray[idx] = val * np.exp(precache * idx)
+    return new_ray
 
 # @numba.jit
 def apply_fdoa(ray, fdoa, samp_rate):
@@ -44,8 +57,8 @@ def amb_surf(needle, haystack, freqs_hz, samp_rate):
     assert len_needle == len_haystack
     surf = np.empty((len_freqs, len_needle))
     for fdx, freq_hz in enumerate(freqs_hz):
-        shifted = apply_fdoa(needle, freq_hz, samp_rate)
-        surf[fdx] = xcor(shifted, haystack)
+        shifted = apply_fdoa_turbo(needle, freq_hz, samp_rate)
+        surf[fdx] = xcor_turbo(shifted, haystack)
     return surf
 
 if __name__ == '__main__':
