@@ -2,12 +2,15 @@
 import numpy as np
 import time
 from scipy import signal
+# import numba
 
+# @numba.jit
 def xcor(apple, banana):
     '''1D Cross-Correlation'''
     corr = signal.correlate(apple, banana, mode='same', method='fft')
     return np.abs(corr)
 
+# @numba.jit
 def apply_fdoa(ray, fdoa, samp_rate):
     precache = 2j * np.pi * fdoa / samp_rate
     new_ray = np.empty_like(ray)
