@@ -2,7 +2,7 @@
 // Use CLAP to take in two c64 files as arguments
 
 mod caf;
-use caf::{read_file_c64, BinaryIO, caf_surface, find_caf_peak};
+use caf::{read_file_c64, caf_surface, find_caf_peak};
 
 fn main() {
 
@@ -10,8 +10,6 @@ fn main() {
     let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();
     let mut haystack = read_file_c64("../data/chirp_0_T+202samp_F+69.25Hz.c64").unwrap();
     haystack.resize(needle.len(), Default::default());
-
-    needle.write_file_binary("../data/chirp_0_raw.c64.new").unwrap();
 
     // -100Hz to 100Hz, 0.5Hz step
     let mut shifts = Vec::new();
