@@ -21,15 +21,15 @@ Teque5 predicts that *go* and *rust* will produce the fastest implementations, b
 Both *go* and *rust* versions took similar time to construct initial filterbank versions, about 7 hours. This was mostly due to our non-familiarity with these languages. By comparison we had a tidy python version in under an hour. For numba acceleration double that.
 
 ## Compute Results
-| language | method         | backend      | precision | i7-8550U 16GB |
-|----------|----------------|--------------|:---------:|:-------------:|
-| rust     | fb             | fftw         |    c128   |     201 ms    |
-| go       | fb +goroutines | go-dsp       |    c128   |     233 ms    |
-| rust     | fb             | RustFFT      |    c128   |     287 ms    |
-| python   | fb +numba1     | scipy.signal |    c128   |     622 ms    |
-| python   | fb +numba0     | scipy.signal |    c128   |     696 ms    |
-| go       | fb             | go-dsp       |    c128   |     877 ms    |
-| python   | fb             | scipy.signal |    c128   |    4336 ms    |
+| language | method         | backend      | precision | i7-8550U 16GB | Ryzen 9 3900X 32GB |
+|----------|----------------|--------------|:---------:|:-------------:|:------------------:|
+| go       | fb +goroutines | go-dsp       |    c128   |     233 ms    |         94ms       |
+| rust     | fb             | fftw         |    c128   |     201 ms    |        109ms       |
+| rust     | fb             | RustFFT      |    c128   |     287 ms    |        177ms       |
+| python   | fb +numba1     | scipy.signal |    c128   |     622 ms    |        422ms       |
+| python   | fb +numba0     | scipy.signal |    c128   |     696 ms    |                    |
+| go       | fb             | go-dsp       |    c128   |     877 ms    |        827ms       |
+| python   | fb             | scipy.signal |    c128   |    4336 ms    |                    |
 
 * fb == caf filterbank implementation
 * numba0 is naive wrapping of functions with `@numba.jit`
@@ -64,6 +64,7 @@ cargo +nightly bench
 #### Golang
 ```bash
 cd caf_go
+go get github.com/mjibson/go-dsp/fft
 go run .
 go test -bench=. -benchtime=5
 ```
