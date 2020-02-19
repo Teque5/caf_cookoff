@@ -9,6 +9,7 @@ import (
 	"math/cmplx"
 	"os"
 	"sync"
+	"github.com/barnex/fftw"
 )
 
 func dump_surf(path string, surf [][]float64) (err error) {
@@ -92,6 +93,48 @@ func c64_to_c128(ray_i []complex64) (ray_iq []complex128) {
 	return
 }
 
+func c128_to_c64(ray_i []complex128) (ray_iq []complex64) {
+	len_ray := len(ray_i)
+	ray_iq = make([]complex64, len_ray)
+	for idx, val := range(ray_i) {
+		ray_iq[idx] = complex64(val)
+	}
+	return
+}
+
+func xcor_fftw(apple []complex128, banana []complex128) (corr_abs []float64) {
+	// Standard crosscorrelation implementation
+	len_ray := len(apple)
+	zero_pad := make([]complex64, len_ray)
+	if len(banana) != len_ray {
+		panic("input arrays should be same size")
+	}
+	apple_padded := append(c128_to_c64(apple), zero_pad...)
+	banana_padded := append(zero_pad, c128_to_c64(banana)...)
+
+	apple_fft := make([]complex64, 2*len_ray)
+  plan := fftw.PlanC2C([]int{2*len_ray}, apple_padded, apple_fft, fftw.FORWARD, fftw.ESTIMATE)
+  plan.Execute()
+	banana_fft := make([]complex64, 2*len_ray)
+	plan = fftw.PlanC2C([]int{2*len_ray}, banana_padded, banana_fft, fftw.FORWARD, fftw.ESTIMATE)
+	plan.Execute()
+
+	fleeb := make([]complex64, 2*len_ray)
+	for idx, _ := range apple_fft {
+		fleeb[idx] = apple_fft[idx] * complex64(cmplx.Conj(complex128(banana_fft[idx])))
+	}
+
+	corr := make([]complex64, 2*len_ray)
+	plan = fftw.PlanC2C([]int{len_ray}, fleeb, corr, fftw.BACKWARD, fftw.ESTIMATE)
+	plan.Execute()
+
+	corr_abs = make([]float64, len(corr))
+	for idx, val := range corr {
+		corr_abs[idx] = cmplx.Abs(complex128(val))
+	}
+	return
+}
+
 func xcor(apple []complex128, banana []complex128) (corr_abs []float64) {
 	// Standard crosscorrelation implementation
 	len_ray := len(apple)
@@ -135,7 +178,7 @@ func surf_row(needle []complex128, haystack []complex128, freq_hz float64, samp_
 	defer wg.Done()
 	shifted := apply_fdoa(needle, freq_hz, samp_rate)
 	fleeb := new(amb_row)
-	fleeb.xcor = xcor(shifted, haystack)
+	fleeb.xcor = xcor_fftw(shifted, haystack)
 	fleeb.fdx = fdx
   c <- *fleeb
 }
@@ -167,7 +210,7 @@ func amb_surf(needle []complex128, haystack []complex128, freqs_hz []float64, sa
 	surf := make([][]float64, len_freq, len_ray)
 	for fdx, freq_hz := range freqs_hz {
 		shifted = apply_fdoa(needle, freq_hz, samp_rate)
-		surf[fdx] = xcor(shifted, haystack)
+		surf[fdx] = xcor_fftw(shifted, haystack)
 	}
 	return surf
 }
