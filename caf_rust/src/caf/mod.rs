@@ -12,10 +12,10 @@ use std::fs::File;
 
 use num_complex::Complex64;
 
-mod xcor_fftw;
-use xcor_fftw::Xcor;
-// mod xcor_rustfft;
-// use xcor_rustfft::Xcor;
+// mod xcor_fftw;
+// use xcor_fftw::Xcor;
+mod xcor_rustfft;
+use xcor_rustfft::Xcor;
 
 
 // Reads a file of packed 32 bit floats and returns
@@ -103,16 +103,22 @@ pub fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
     freqs_hz: &[f64], fs: u32)
     -> Vec<Vec<f64>> {
 
-    // Create our 2D surface
+    // Create our 2D surface and setup Vecs
     let mut surface = Vec::new();
+    let mut needle = needle.to_vec();
+    let mut haystack = haystack.to_vec();
+
+    // Zero-pad our inputs to 2N
+    needle.resize(needle.len() * 2, Default::default());
+    haystack.resize(haystack.len() * 2, Default::default());
 
     // Run the cross correlation against the shifted ones
     let mut xcor = Xcor::new(needle.len());
     for freq in freqs_hz.iter() {
 
         // Generate a shifted copy and cross correlate with target
-        let shifted = apply_freq_shifts(needle, *freq, fs);
-        let xcor_res = xcor.run(haystack, &shifted);
+        let shifted = apply_freq_shifts(&needle, *freq, fs);
+        let xcor_res = xcor.run(&haystack, &shifted);
 
         // Take the magnitude squared (for efficiency)
         let mut xcor_mag = Vec::with_capacity(xcor_res.len());
