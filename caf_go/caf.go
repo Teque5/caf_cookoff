@@ -46,7 +46,7 @@ func load_c64(path string) (ray []complex64, err error) {
 	if err != nil {
 		log.Fatalf("error reading floats %v", err)
 	}
-	log.Printf("loaded %v samples from %v\n", sample_count, path)
+	// log.Printf("loaded %v samples from %v\n", sample_count, path)
 	return ray, nil
 }
 
@@ -68,7 +68,7 @@ func load_f32(path string) (ray []float32, err error) {
 	if err != nil {
 		log.Fatalf("error reading floats %v", err)
 	}
-	log.Printf("loaded %v samples from %v\n", sample_count, path)
+	// log.Printf("loaded %v samples from %v\n", sample_count, path)
 	return ray, nil
 }
 

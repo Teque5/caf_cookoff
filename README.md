@@ -23,15 +23,14 @@ Both *go* and *rust* versions took similar time to construct initial filterbank 
 ## Compute Results
 | language | method         | backend      | precision | i7-8550U 16GB |
 |----------|----------------|--------------|:---------:|:-------------:|
-| rust*    | fb             | fftw         |    c128   |      86 ms    |
-| rust*    | fb             | RustFFT      |    c128   |     127 ms    |
-| go       | fb +goroutines | go-dsp       |    c128   |     236 ms    |
+| rust     | fb             | fftw         |    c128   |     201 ms    |
+| go       | fb +goroutines | go-dsp       |    c128   |     233 ms    |
+| rust     | fb             | RustFFT      |    c128   |     287 ms    |
 | python   | fb +numba1     | scipy.signal |    c128   |     622 ms    |
 | python   | fb +numba0     | scipy.signal |    c128   |     696 ms    |
-| go       | fb             | go-dsp       |    c128   |     938 ms    |
+| go       | fb             | go-dsp       |    c128   |     877 ms    |
 | python   | fb             | scipy.signal |    c128   |    4336 ms    |
 
-* rust* implementation currently doesn't pad correctly yet.
 * fb == caf filterbank implementation
 * numba0 is naive wrapping of functions with `@numba.jit`
 * numba1 is `@numba.njit` with type hinting
@@ -57,7 +56,7 @@ cargo +nightly bench
 ```bash
 cd caf_go
 go run .
-go test -bench=.
+go test -bench=. -benchtime=5
 ```
 #### Python
 ```bash
