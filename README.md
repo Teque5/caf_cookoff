@@ -46,10 +46,19 @@ Both *go* and *rust* versions took similar time to construct initial filterbank 
     * gr-sigmf
 
 ### Procedure
-#### Rust
+#### Data Generation
+Install numpy, scipy for Python 3
 ```bash
+cd utils
+python3 ./generate.py
+```
+#### Rust
+Install `rustup` from [rustup.rs](https://rustup.rs/)
+```bash
+rustup install nightly
 cd caf_rust
 cargo run
+cargo test
 cargo +nightly bench
 ```
 #### Golang
