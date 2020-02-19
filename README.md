@@ -25,18 +25,18 @@ Time to compute a 400x8192 cross ambiguity surface.
 
 | language | method         | backend      | precision | i7-8550U 16GB | Ryzen 9 3900X 32GB |
 |----------|----------------|--------------|:---------:|:-------------:|:------------------:|
-| go       | fb +goroutines | fftw         |     c64   |      70 ms    |                    |
-| go       | fb             | fftw         |     c64   |     221 ms    |                    |
-| go       | fb +goroutines | go-dsp       |    c128   |     233 ms    |         94ms       |
+| go       | fb +goroutines | fftw         |     c64   |      82 ms    |                    |
+| go       | fb             | fftw         |     c64   |     178 ms    |                    |
+| go       | fb +goroutines | go-dsp       |    c128   |     208 ms    |         94ms       |
 | rust     | fb             | fftw         |    c128   |     201 ms    |        109ms       |
 | rust     | fb             | RustFFT      |    c128   |     287 ms    |        177ms       |
 | python   | fb +numba1     | scipy.signal |    c128   |     622 ms    |        422ms       |
 | python   | fb +numba0     | scipy.signal |    c128   |     696 ms    |                    |
-| go       | fb             | go-dsp       |    c128   |     877 ms    |        827ms       |
+| go       | fb             | go-dsp       |    c128   |     795 ms    |        827ms       |
 | python   | fb             | scipy.signal |    c128   |    4336 ms    |                    |
 
 Notes
-* go fftw implementation is no saving wisdom smartly
+* go fftw implementation is not saving wisdom smartly. data still handled as complex128, but fftw wrapper only supports complex64 so i'm casting in and out during the cross-correlation.
 * fb means caf "filterbank" implementation
 * numba0 is naive wrapping of functions with `@numba.jit`
 * numba1 is `@numba.njit` with type hinting
