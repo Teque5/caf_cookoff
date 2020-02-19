@@ -1,6 +1,5 @@
 # CAF Cook-Off
-Which cross ambiguity function will win? Implementations in *Rust*, *Go*, and *Python*.
-
+In our search for the language of the future, we decided to try and write a common dsp function in a few select languages. Which cross ambiguity function implementation will win? Implementations in **Rust**, **Go**, and **Python**.
 
 ## OV-1
 We are trying to answer the following questions:
@@ -10,23 +9,29 @@ We are trying to answer the following questions:
 * Cross-compilation?
 * How simple is each implementation?
 
+## CAF?
+A cross ambiguity function (CAF) is a method of comparing complex waveforms to determine time and frequency offset.
+![Signals Under Test](/docs/s0s1-time.png)
+![CAF Surface](/docs/s0s1-caf.png)
+
 ## Hypothesis
 Teque5 predicts that *go* and *rust* will produce the fastest implementations, but go will have the simplist parralelized version.
 
 ## Time to Minimum Viable Product
-Both *go* and *rust* versions took similar time to construct initial filterbank versions, about 7 hours.
+Both *go* and *rust* versions took similar time to construct initial filterbank versions, about 7 hours. This was mostly due to our non-familiarity with these languages. By comparison we had a tidy python version in under an hour. For numba acceleration double that.
 
 ## Compute Results
 | language | method         | backend      | precision | i7-8550U 16GB |
 |----------|----------------|--------------|:---------:|:-------------:|
-| python   | fb             | scipy.signal |  c128     |    4336ms     |
-| python   | fb +numba0     | scipy.signal |  c128     |     696ms     |
-| go       | fb             | go-dsp       |  c128     |     938ms     |
-| python   | fb +numba1     | scipy.signal |  c128     |     622ms     |
-| go       | fb +goroutines | go-dsp       |  c128     |     236ms     |
-| rust*    | fb             | fftw         |  c128     |     117ms     |
+| rust*    | fb             | fftw         |    c128   |      86 ms    |
+| rust*    | fb             | RustFFT      |    c128   |     127 ms    |
+| go       | fb +goroutines | go-dsp       |    c128   |     236 ms    |
+| python   | fb +numba1     | scipy.signal |    c128   |     622 ms    |
+| python   | fb +numba0     | scipy.signal |    c128   |     696 ms    |
+| go       | fb             | go-dsp       |    c128   |     938 ms    |
+| python   | fb             | scipy.signal |    c128   |    4336 ms    |
 
-* rust* implementation currently doesn't pad correctly.
+* rust* implementation currently doesn't pad correctly yet.
 * fb == caf filterbank implementation
 * numba0 is naive wrapping of functions with `@numba.jit`
 * numba1 is `@numba.njit` with type hinting
