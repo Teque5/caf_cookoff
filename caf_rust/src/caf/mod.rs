@@ -1,9 +1,7 @@
 // TODO
 // Add option for FFTW/RustFFT for direct bench comparison
 // Multithreading FFTs and maybe frequency shift calculations
-// impl some of these on the types directly
-//      xcor, freq shift, write_file on Complex64 slice
-//      2d peak on Vec<Vec<Complex64>> if possible
+
 
 use std::io;
 use std::io::prelude::*;
@@ -12,10 +10,10 @@ use std::fs::File;
 
 use num_complex::Complex64;
 
-// mod xcor_fftw;
-// use xcor_fftw::Xcor;
-mod xcor_rustfft;
-use xcor_rustfft::Xcor;
+mod xcor_fftw;
+use xcor_fftw::Xcor;
+// mod xcor_rustfft;
+// use xcor_rustfft::Xcor;
 
 
 // Reads a file of packed 32 bit floats and returns
@@ -99,9 +97,16 @@ fn apply_freq_shifts(samples: &[Complex64], freq_shift: f64, fs: u32)
 // Take in 2 signals and a range of frequency shifts to try
 // and compute their CAF. Return the surface as a 2D Vec of
 // cross correlation magnitudes squared (for efficiency)
+#[allow(dead_code)]
+pub struct CAFSurfaceRow {
+    freq: f64,
+    xcor_mag: Vec<f64>,
+    xcor_peak_idx: usize,
+    xcor_peak_val: f64,
+}
 pub fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
     freqs_hz: &[f64], fs: u32)
-    -> Vec<Vec<f64>> {
+    -> Vec<CAFSurfaceRow> {
 
     // Create our 2D surface and setup Vecs
     let mut surface = Vec::new();
@@ -120,33 +125,46 @@ pub fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
         let shifted = apply_freq_shifts(&needle, *freq, fs);
         let xcor_res = xcor.run(&haystack, &shifted);
 
-        // Take the magnitude squared (for efficiency)
+        // Take the magnitude squared of the result and find (arg)max
         let mut xcor_mag = Vec::with_capacity(xcor_res.len());
-        for res in xcor_res.iter() {
-            xcor_mag.push(res.norm_sqr());
+        let mut max = Default::default();
+        let mut argmax = 0;
+        for (i, res) in xcor_res.iter().enumerate() {
+            // Use the magnitude squared (for efficiency)
+            let mag_squared = res.norm_sqr();
+            if mag_squared > max {
+                max = mag_squared;
+                argmax = i;
+            }
+            xcor_mag.push(mag_squared);
         }
 
         // Add this frequency and move to the next
-        surface.push(xcor_mag);
+        surface.push(CAFSurfaceRow {
+            freq: *freq,
+            xcor_mag,
+            xcor_peak_idx: argmax,
+            xcor_peak_val: max,
+        });
     }
 
     // Return our CAF surface
     surface
 }
 
-// 2D argmax of f64
-pub fn find_2d_peak(arr: Vec<Vec<f64>>) -> (usize, usize) {
-    let mut max = Default::default();
-    let mut argmax = (0, 0);
-    for (i, row) in arr.iter().enumerate() {
-        for (j, elem) in row.iter().enumerate() {
-            if *elem > max {
-                max = *elem;
-                argmax = (i, j);
-            }
+// Find the row with the highest correlation peak and return
+// its (frequency, sample_index)
+pub fn find_caf_peak(arr: Vec<CAFSurfaceRow>) -> (f64, usize) {
+    let mut max: &CAFSurfaceRow = &CAFSurfaceRow {
+        freq: 0.0, xcor_mag: Vec::new(),
+        xcor_peak_idx: 0, xcor_peak_val: 0.0
+    };
+    for row in arr.iter() {
+        if row.xcor_peak_val > max.xcor_peak_val {
+            max = &row;
         }
     }
-    argmax
+    (max.freq, max.xcor_peak_idx)
 }
 
 
@@ -167,10 +185,10 @@ mod tests {
 
         // Get the CAF estimates
         let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq_idx, samp_idx) = find_2d_peak(surface);
+        let (freq, samp_idx) = find_caf_peak(surface);
 
         // Confirm correct results
-        assert_eq!(shifts[freq_idx], 69.25);
+        assert_eq!(freq, 69.25);
         assert_eq!(samp_idx, 202);
     }
 
@@ -186,10 +204,10 @@ mod tests {
 
         // Get the CAF estimates
         let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq_idx, samp_idx) = find_2d_peak(surface);
+        let (freq, samp_idx) = find_caf_peak(surface);
 
         // Confirm correct results
-        assert_eq!(shifts[freq_idx], 36.0);
+        assert_eq!(freq, 36.0);
         assert_eq!(samp_idx, 78);
     }
 
@@ -205,10 +223,10 @@ mod tests {
 
         // Get the CAF estimates
         let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq_idx, samp_idx) = find_2d_peak(surface);
+        let (freq, samp_idx) = find_caf_peak(surface);
 
         // Confirm correct results
-        assert_eq!(shifts[freq_idx], 32.15);
+        assert_eq!(freq, 32.15);
         assert_eq!(samp_idx, 169);
     }
 
@@ -224,10 +242,10 @@ mod tests {
 
         // Get the CAF estimates
         let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq_idx, samp_idx) = find_2d_peak(surface);
+        let (freq, samp_idx) = find_caf_peak(surface);
 
         // Confirm correct results
-        assert_eq!(shifts[freq_idx], -76.25);
+        assert_eq!(freq, -76.25);
         assert_eq!(samp_idx, 151);
     }
 
@@ -243,10 +261,10 @@ mod tests {
 
         // Get the CAF estimates
         let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq_idx, samp_idx) = find_2d_peak(surface);
+        let (freq, samp_idx) = find_caf_peak(surface);
 
         // Confirm correct results
-        assert_eq!(shifts[freq_idx], 82.9);
+        assert_eq!(freq, 82.9);
         assert_eq!(samp_idx, 70);
     }
 
@@ -262,10 +280,10 @@ mod tests {
 
         // Get the CAF estimates
         let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq_idx, samp_idx) = find_2d_peak(surface);
+        let (freq, samp_idx) = find_caf_peak(surface);
 
         // Confirm correct results
-        assert_eq!(shifts[freq_idx], -92.75);
+        assert_eq!(freq, -92.75);
         assert_eq!(samp_idx, 177);
     }
 
@@ -281,10 +299,10 @@ mod tests {
 
         // Get the CAF estimates
         let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq_idx, samp_idx) = find_2d_peak(surface);
+        let (freq, samp_idx) = find_caf_peak(surface);
 
         // Confirm correct results
-        assert_eq!(shifts[freq_idx], -49.75);
+        assert_eq!(freq, -49.75);
         assert_eq!(samp_idx, 15);
     }
 
@@ -300,10 +318,10 @@ mod tests {
 
         // Get the CAF estimates
         let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq_idx, samp_idx) = find_2d_peak(surface);
+        let (freq, samp_idx) = find_caf_peak(surface);
 
         // Confirm correct results
-        assert_eq!(shifts[freq_idx], 68.25);
+        assert_eq!(freq, 68.25);
         assert_eq!(samp_idx, 84);
     }
 
@@ -319,10 +337,10 @@ mod tests {
 
         // Get the CAF estimates
         let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq_idx, samp_idx) = find_2d_peak(surface);
+        let (freq, samp_idx) = find_caf_peak(surface);
 
         // Confirm correct results
-        assert_eq!(shifts[freq_idx], -46.25);
+        assert_eq!(freq, -46.25);
         assert_eq!(samp_idx, 80);
     }
 
@@ -338,10 +356,10 @@ mod tests {
 
         // Get the CAF estimates
         let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq_idx, samp_idx) = find_2d_peak(surface);
+        let (freq, samp_idx) = find_caf_peak(surface);
 
         // Confirm correct results
-        assert_eq!(shifts[freq_idx], 61.5);
+        assert_eq!(freq, 61.5);
         assert_eq!(samp_idx, 176);
     }
 
