@@ -21,6 +21,8 @@ Teque5 predicts that *go* and *rust* will produce the fastest implementations, b
 Both *go* and *rust* versions took similar time to construct initial filterbank versions, about 7 hours. This was mostly due to our non-familiarity with these languages. By comparison we had a tidy python version in under an hour. For numba acceleration double that.
 
 ## Compute Results
+Time to compute a 400x8192 cross ambiguity surface.
+
 | language | method         | backend      | precision | i7-8550U 16GB | Ryzen 9 3900X 32GB |
 |----------|----------------|--------------|:---------:|:-------------:|:------------------:|
 | go       | fb +goroutines | go-dsp       |    c128   |     233 ms    |         94ms       |
