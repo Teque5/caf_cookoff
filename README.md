@@ -25,6 +25,8 @@ Time to compute a 400x8192 cross ambiguity surface.
 
 | language | method         | backend      | precision | i7-8550U 16GB | Ryzen 9 3900X 32GB |
 |----------|----------------|--------------|:---------:|:-------------:|:------------------:|
+| go       | fb +goroutines | fftw         |     c64   |      70 ms    |                    |
+| go       | fb             | fftw         |     c64   |     221 ms    |                    |
 | go       | fb +goroutines | go-dsp       |    c128   |     233 ms    |         94ms       |
 | rust     | fb             | fftw         |    c128   |     201 ms    |        109ms       |
 | rust     | fb             | RustFFT      |    c128   |     287 ms    |        177ms       |
@@ -33,7 +35,9 @@ Time to compute a 400x8192 cross ambiguity surface.
 | go       | fb             | go-dsp       |    c128   |     877 ms    |        827ms       |
 | python   | fb             | scipy.signal |    c128   |    4336 ms    |                    |
 
-* fb == caf filterbank implementation
+Notes
+* go fftw implementation is no saving wisdom smartly
+* fb means caf "filterbank" implementation
 * numba0 is naive wrapping of functions with `@numba.jit`
 * numba1 is `@numba.njit` with type hinting
 
@@ -77,7 +81,7 @@ cd caf_python
 ```
 
 ## Observations
-* Go has fftw bindings or there is a fft library in go-dsp, but the latter isn't a full implementation and the former has quite a bit of complexity. I am disappointed such a basic tool isn't better integrated. The `go-dsp` implementation only supports `complex128` types, and the `fftw` wrapper only supports `complex64`, which is a real bummer.
+* Go has fftw bindings or there is a fft library in go-dsp, but the latter isn't a full implementation and the former has quite a bit of complexity. I am disappointed such a basic tool isn't better integrated. The `go-dsp` implementation only supports `complex128` types, and the `fftw` wrapper only supports `complex64`, which is a real bummer. Additionally the `math` and `math/cmplx` libraries **only** support `complex128`. WHY!
 * Go and Python both have complex types, but rust uses a struct with two floats.
 
 ## References
