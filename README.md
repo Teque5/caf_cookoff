@@ -77,7 +77,7 @@ cd caf_python
 ```
 
 ## Observations
-* Go has fftw bindings or there is a fft library in go-dsp, but the latter isn't a full implementation and the former has quite a bit of complexity. I am disappointed such a basic tool isn't better integrated. The go-dsp implmentation only supports `complex128` types -> bizzare.
+* Go has fftw bindings or there is a fft library in go-dsp, but the latter isn't a full implementation and the former has quite a bit of complexity. I am disappointed such a basic tool isn't better integrated. The `go-dsp` implementation only supports `complex128` types, and the `fftw` wrapper only supports `complex64`, which is a real bummer.
 * Go and Python both have complex types, but rust uses a struct with two floats.
 
 ## References
