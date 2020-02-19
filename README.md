@@ -39,6 +39,16 @@ Notes
 * fb indiates the "filterbank" CAF algorithm
 * numba uses `@numba.njit` with type hinting
 
+## Subjective Conclusions
+|                         | python | rust |  go  |
+|-------------------------|:------:|:----:|:----:|
+| Min Time for Viable CAF |   1hr  |  7hr |  7hr |
+| Time for Parallel Ver   |    ?   |   ?  |  2hr |
+| Performance             |  ★☆☆ | ★★★ | ★★★ |
+| Cross-compilation       |  ☆☆☆ |   ?  | ★★★ |
+| Simplicity              |  ★★★ | ★★☆ | ★★☆ |
+| Library Avail           |  ★★★ | ★★☆ | ★☆☆ |
+
 ## Run
 ### Requires
 * python3
