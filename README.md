@@ -25,17 +25,29 @@ Time to compute a 400x8192 cross ambiguity surface.
 
 | language | method         | backend      | precision | i7-8550U 16GB | Ryzen 9 3900X 32GB |
 |----------|----------------|--------------|:---------:|:-------------:|:------------------:|
-| go       | fb +goroutines | go-dsp       |    c128   |     233 ms    |         94ms       |
+| go       | fb +goroutines | fftw         |     c64   |      82 ms    |                    |
+| go       | fb             | fftw         |     c64   |     178 ms    |                    |
+| go       | fb +goroutines | go-dsp       |    c128   |     208 ms    |         94ms       |
 | rust     | fb             | fftw         |    c128   |     201 ms    |        109ms       |
 | rust     | fb             | RustFFT      |    c128   |     287 ms    |        177ms       |
-| python   | fb +numba1     | scipy.signal |    c128   |     622 ms    |        422ms       |
-| python   | fb +numba0     | scipy.signal |    c128   |     696 ms    |                    |
-| go       | fb             | go-dsp       |    c128   |     877 ms    |        827ms       |
+| python   | fb +numba      | scipy.signal |    c128   |     622 ms    |        422ms       |
+| go       | fb             | go-dsp       |    c128   |     795 ms    |        827ms       |
 | python   | fb             | scipy.signal |    c128   |    4336 ms    |                    |
 
-* fb == caf filterbank implementation
-* numba0 is naive wrapping of functions with `@numba.jit`
-* numba1 is `@numba.njit` with type hinting
+Notes
+* go fftw implementation is not saving wisdom smartly. Data still handled as complex128, but fftw wrapper only supports complex64 so i'm casting in and out during the cross-correlation.
+* fb indiates the "filterbank" CAF algorithm
+* numba uses `@numba.njit` with type hinting
+
+## Subjective Conclusions
+|                         | python | rust |  go  |
+|-------------------------|:------:|:----:|:----:|
+| Min Time for Viable CAF |   1hr  |  7hr |  7hr |
+| Time for Parallel Ver   |    ?   |   ?  |  2hr |
+| Performance             |  ★☆☆ | ★★★ | ★★★ |
+| Cross-compilation       |  ☆☆☆ |   ?  | ★★★ |
+| Simplicity              |  ★★★ | ★★☆ | ★★☆ |
+| Library Avail           |  ★★★ | ★★☆ | ★☆☆ |
 
 ## Run
 ### Requires
@@ -77,7 +89,7 @@ cd caf_python
 ```
 
 ## Observations
-* Go has fftw bindings or there is a fft library in go-dsp, but the latter isn't a full implementation and the former has quite a bit of complexity. I am disappointed such a basic tool isn't better integrated. The `go-dsp` implementation only supports `complex128` types, and the `fftw` wrapper only supports `complex64`, which is a real bummer.
+* Go has fftw bindings or there is a fft library in go-dsp, but the latter isn't a full implementation and the former has quite a bit of complexity. I am disappointed such a basic tool isn't better integrated. The `go-dsp` implementation only supports `complex128` types, and the `fftw` wrapper only supports `complex64`, which is a real bummer. Additionally the `math` and `math/cmplx` libraries **only** support `complex128`. WHY!
 * Go and Python both have complex types, but rust uses a struct with two floats.
 
 ## References
