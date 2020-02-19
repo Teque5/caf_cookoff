@@ -77,3 +77,17 @@ impl Xcor {
         self.b.to_vec()
     }
 }
+
+// Implement the very cheap copy for FFT wisdom
+impl Clone for Xcor {
+    fn clone(&self) -> Xcor {
+        Xcor {
+            n: self.n,
+            a: vec![Default::default(); self.n],
+            b: vec![Default::default(); self.n],
+            c: vec![Default::default(); self.n],
+            fft: Arc::clone(&(self.fft)),
+            ifft: Arc::clone(&(self.ifft)),
+        }
+    }
+}

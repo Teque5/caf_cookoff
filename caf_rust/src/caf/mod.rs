@@ -7,13 +7,15 @@ use std::io;
 use std::io::prelude::*;
 use std::f64::consts::PI;
 use std::fs::File;
+use std::sync::{mpsc};
+use std::thread;
 
 use num_complex::Complex64;
 
-mod xcor_fftw;
-use xcor_fftw::Xcor;
-// mod xcor_rustfft;
-// use xcor_rustfft::Xcor;
+// mod xcor_fftw;
+// use xcor_fftw::Xcor;
+mod xcor_rustfft;
+use xcor_rustfft::Xcor;
 
 
 // Reads a file of packed 32 bit floats and returns
@@ -117,35 +119,56 @@ pub fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
     needle.resize(needle.len() * 2, Default::default());
     haystack.resize(haystack.len() * 2, Default::default());
 
+    // Setup threading handles/channels
+    let (tx, rx) = mpsc::channel();
+
     // Run the cross correlation against the shifted ones
-    let mut xcor = Xcor::new(needle.len());
+    let xcor = Xcor::new(needle.len());
     for freq in freqs_hz.iter() {
 
-        // Generate a shifted copy and cross correlate with target
-        let shifted = apply_freq_shifts(&needle, *freq, fs);
-        let xcor_res = xcor.run(&haystack, &shifted);
+        // Copy what we need to for the thread
+        let tx = mpsc::Sender::clone(&tx);
+        let freq = *freq; // f64 can be copied, &f64 cannot
+        let needle = needle.clone(); // TODO, pass immutable references
+        let haystack = haystack.clone();
+        let mut xcor = xcor.clone();
 
-        // Take the magnitude squared of the result and find (arg)max
-        let mut xcor_mag = Vec::with_capacity(xcor_res.len());
-        let mut max = Default::default();
-        let mut argmax = 0;
-        for (i, res) in xcor_res.iter().enumerate() {
-            // Use the magnitude squared (for efficiency)
-            let mag_squared = res.norm_sqr();
-            if mag_squared > max {
-                max = mag_squared;
-                argmax = i;
+        // Spawn the thread and run
+        thread::spawn(move || {
+
+            // Generate a shifted copy and cross correlate with target
+            let shifted = apply_freq_shifts(&needle, freq, fs);
+            let xcor_res = xcor.run(&haystack, &shifted);
+
+            // Take the magnitude squared of the result and find (arg)max
+            let mut xcor_mag = Vec::with_capacity(xcor_res.len());
+            let mut max = Default::default();
+            let mut argmax = 0;
+            for (i, res) in xcor_res.iter().enumerate() {
+                // Use the magnitude squared (for efficiency)
+                let mag_squared = res.norm_sqr();
+                if mag_squared > max {
+                    max = mag_squared;
+                    argmax = i;
+                }
+                xcor_mag.push(mag_squared);
             }
-            xcor_mag.push(mag_squared);
-        }
 
-        // Add this frequency and move to the next
-        surface.push(CAFSurfaceRow {
-            freq: *freq,
-            xcor_mag,
-            xcor_peak_idx: argmax,
-            xcor_peak_val: max,
+            // Return our result to the main thread
+            tx.send(CAFSurfaceRow {
+                freq,
+                xcor_mag,
+                xcor_peak_idx: argmax,
+                xcor_peak_val: max,
+            }).unwrap();
         });
+    }
+
+    // Wait for all threads to finish and
+    // Populate our results into a Vec, no longer ordered by freq
+    for _ in freqs_hz.iter() {
+        let row = rx.recv().unwrap();
+        surface.push(row);
     }
 
     // Return our CAF surface
