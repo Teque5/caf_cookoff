@@ -18,9 +18,9 @@ A cross ambiguity function (CAF) is a method of comparing complex waveforms to d
 Teque5 predicts that *go* and *rust* will produce the fastest implementations, but go will have the simplist parralelized version.
 
 ## Results
+### Benchmarks
 Time to compute a 400x8192 cross ambiguity surface.
-
-### Single Thread
+#### Single Thread
 | language | method          | backend      | precision | i7-8550U 16GB | Ryzen3900X 32GB | ARM A57 4GB |
 |----------|-----------------|--------------|:---------:|:-------------:|:---------------:|:-----------:|
 | go       | fb              | fftw         |     c64   |     178 ms    |      145 ms     |      -      |
@@ -30,10 +30,10 @@ Time to compute a 400x8192 cross ambiguity surface.
 | go       | fb              | go-dsp       |    c128   |     795 ms    |      827 ms     |   2386 ms   |
 | python   | fb              | scipy.signal |    c128   |    4336 ms    |                 |  41700 ms   |
 
-### Multiple Threads
+#### Multiple Threads
 | language | method          | backend      | precision | i7-8550U 16GB | Ryzen3900X 32GB | ARM A57 4GB |
 |----------|-----------------|--------------|:---------:|:-------------:|:---------------:|:-----------:|
-| rust     | fb +std::thread | RustFFT      |    c128   |               |      37 ms      |      -      |
+| rust     | fb +std::thread | RustFFT      |    c128   |     147 ms    |      37 ms      |      -      |
 | go       | fb +goroutines  | fftw         |     c64   |      82 ms    |      41 ms      |      -      |
 | go       | fb +goroutines  | go-dsp       |    c128   |     208 ms    |      94 ms      |    955 ms   |
 
