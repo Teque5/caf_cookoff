@@ -21,23 +21,23 @@ Teque5 predicts that *go* and *rust* will produce the fastest implementations, b
 ### Benchmarks
 Time to compute a 400x8192 cross ambiguity surface using the "filterbank" CAF algorithm. I/O is all float64 and complex128.
 #### Single Thread
-| lang   | backend      | accel        | Ryzen3900X 32G | i7-8550U 16G | ARM A57 4G |
-|--------|--------------|:------------:|:--------------:|:------------:|:----------:|
-| go     | fftw         | +numba       |     145 ms     |    178 ms    |      -     |
-| rust   | fftw         |              |     109 ms     |    201 ms    |      -     |
-| rust   | RustFFT      |              |     177 ms     |    287 ms    |      -     |
-| python | scipy.signal |              |     422 ms     |    622 ms    |   2315 ms  |
-| go     | go-dsp       |              |     827 ms     |    795 ms    |   2386 ms  |
-| python | scipy.signal |              |        ?       |    4336 ms   |  41700 ms  |
+| lang   | backend | accel        | Ryzen3900X 32G | i7-8550U 16G | ARM A57 4G |
+|--------|---------|:------------:|:--------------:|:------------:|:----------:|
+| go     | fftw    |              |     145 ms     |    178 ms    |      -     |
+| rust   | fftw    |              |     109 ms     |    201 ms    |      -     |
+| rust   | RustFFT |              |     177 ms     |    287 ms    |      -     |
+| python | scipy   | +numba       |     422 ms     |    622 ms    |   2315 ms  |
+| go     | go-dsp  |              |     827 ms     |    795 ms    |   2386 ms  |
+| python | scipy   |              |        ?       |    4336 ms   |  41700 ms  |
 
 #### Multiple Threads
-| lang   | backend      | accel        | Ryzen3900X 32G | i7-8550U 16G | ARM A57 4G |
-|--------|--------------|--------------|:--------------:|:------------:|:----------:|
-| rust   | RustFFT      | +std::thread |      37 ms     |    147 ms    |      -     |
-| python | scipy.signal | +mp +numba   |        ?       |    181 ms    |   662 ms   |
-| go     | fftw         | +goroutines  |      41 ms     |     82 ms    |      -     |
-| go     | go-dsp       | +goroutines  |      94 ms     |    208 ms    |   955 ms   |
-| python | scipy.signal | +mp          |        ?       |    1711 ms   |  11299 ms  |
+| lang   | backend | accel        | Ryzen3900X 32G | i7-8550U 16G | ARM A57 4G |
+|--------|---------|--------------|:--------------:|:------------:|:----------:|
+| rust   | RustFFT | +std::thread |      37 ms     |    147 ms    |      -     |
+| python | scipy   | +mp +numba   |        ?       |    163 ms    |   662 ms   |
+| go     | fftw    | +goroutines  |      41 ms     |     82 ms    |      -     |
+| go     | go-dsp  | +goroutines  |      94 ms     |    208 ms    |   955 ms   |
+| python | scipy   | +mp          |        ?       |    1711 ms   |  11299 ms  |
 
 Notes
 * go fftw implementation is not saving wisdom smartly. Also data still handled as complex128, but fftw wrapper only supports complex64 so i'm casting in and out during the cross-correlation.
