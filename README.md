@@ -104,8 +104,7 @@ cd caf_python
 Implementations of the frequency shift function.
 #### Rust
 ```rust
-fn apply_shift(ray: &[Complex64], freq_shift: f64, samp_rate: u32)
-    -> Vec<Complex64> {
+fn apply_shift(ray: &[Complex64], freq_shift: f64, samp_rate: u32) -> Vec<Complex64> {
     // apply frequency shift
     let mut ray = ray.to_vec();
     let dt = 1.0 / (samp_rate as f64);
