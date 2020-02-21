@@ -1,6 +1,5 @@
 // TODO
 // Add option for FFTW/RustFFT for direct bench comparison
-// Multithreading FFTs and maybe frequency shift calculations
 
 
 use std::io;
@@ -86,10 +85,9 @@ fn apply_freq_shifts(samples: &[Complex64], freq_shift: f64, fs: u32)
     // Apply to each sample
     // x *= e^(j*2pi*fs*df*t)
     let dt = 1.0 / (fs as f64);
-    let exp_common = Complex64::new(0.0, 2.0 * PI * dt * freq_shift);
     for (i, samp) in samples.iter_mut().enumerate() {
-        let exp = Complex64::new(i as f64, 0.0) * exp_common;
-        *samp *= Complex64::exp(&exp);
+        *samp *= Complex64::from_polar(&(1.0),
+            &(2.0 * PI * freq_shift * dt * (i as f64)));
     }
 
     // Return our shifted samples
@@ -194,7 +192,7 @@ pub fn find_caf_peak(arr: Vec<CAFSurfaceRow>) -> (f64, usize) {
 }
 
 
-// Tests for Chirp 0-8
+// Tests for Chirp 0-9
 #[cfg(test)]
 mod tests {
     use super::*;
