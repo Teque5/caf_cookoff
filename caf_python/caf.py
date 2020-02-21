@@ -25,7 +25,6 @@ def apply_fdoa_numba(ray: np.ndarray, fdoa: np.float64, samp_rate: np.float64) -
         new_ray[idx] = val * np.exp(precache * idx)
     return new_ray
 
-# @numba.jit
 def apply_fdoa(ray, fdoa, samp_rate):
     precache = 2j * np.pi * fdoa / samp_rate
     new_ray = np.empty_like(ray)
@@ -33,7 +32,8 @@ def apply_fdoa(ray, fdoa, samp_rate):
         new_ray[idx] = val * np.exp(precache * idx)
     return new_ray
 
-def amb_surf_numba(needle, haystack, freqs_hz, samp_rate):
+@numba.jit(forceobj=True)
+def amb_surf_numba(needle: np.ndarray, haystack: np.ndarray, freqs_hz: np.float64, samp_rate: np.float64) -> np.ndarray:
     len_needle = len(needle)
     len_haystack = len(haystack)
     len_freqs = len(freqs_hz)
