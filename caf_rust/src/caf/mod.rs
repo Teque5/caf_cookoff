@@ -7,7 +7,7 @@ use std::io;
 use std::io::prelude::*;
 use std::f64::consts::PI;
 use std::fs::File;
-use std::sync::{mpsc};
+use std::sync::{mpsc, Arc};
 use std::thread;
 
 use num_complex::Complex64;
@@ -119,8 +119,10 @@ pub fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
     needle.resize(needle.len() * 2, Default::default());
     haystack.resize(haystack.len() * 2, Default::default());
 
-    // Setup threading handles/channels
+    // Setup threading channel and atomic immutable references
     let (tx, rx) = mpsc::channel();
+    let needle = Arc::new(needle);
+    let haystack = Arc::new(haystack);
 
     // Run the cross correlation against the shifted ones
     let xcor = Xcor::new(needle.len());
@@ -129,9 +131,10 @@ pub fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
         // Copy what we need to for the thread
         let tx = mpsc::Sender::clone(&tx);
         let freq = *freq; // f64 can be copied, &f64 cannot
-        let needle = needle.clone(); // TODO, pass immutable references
-        let haystack = haystack.clone();
-        let mut xcor = xcor.clone();
+        // Copy atomic immutable reference instead of full slice
+        let needle = Arc::clone(&needle);
+        let haystack = Arc::clone(&haystack);
+        let mut xcor = xcor.clone(); // Also calls Arc::clone in impl
 
         // Spawn the thread and run
         thread::spawn(move || {
