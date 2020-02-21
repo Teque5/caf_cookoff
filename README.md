@@ -26,7 +26,7 @@ Time to compute a 400x8192 cross ambiguity surface using the "filterbank" CAF al
 | go     | fftw    |              |     145 ms     |    178 ms    |      -     |
 | rust   | fftw    |              |     109 ms     |    201 ms    |      -     |
 | rust   | RustFFT |              |     177 ms     |    287 ms    |      -     |
-| python | scipy   | +numba       |     231 ms     |    622 ms    |   2315 ms  |
+| python | scipy   | +numba       |     164 ms     |    622 ms    |   2315 ms  |
 | go     | go-dsp  |              |     827 ms     |    795 ms    |   2386 ms  |
 | python | scipy   |              |    5630 ms     |    4336 ms   |  41700 ms  |
 
@@ -36,7 +36,7 @@ Time to compute a 400x8192 cross ambiguity surface using the "filterbank" CAF al
 | rust   | RustFFT | +std::thread |      37 ms     |    147 ms    |      -     |
 | go     | fftw    | +goroutines  |      41 ms     |     82 ms    |      -     |
 | go     | go-dsp  | +goroutines  |      94 ms     |    208 ms    |   955 ms   |
-| python | scipy   | +mp +numba   |     134 ms     |    163 ms    |   662 ms   |
+| python | scipy   | +mp +numba   |     133 ms     |    163 ms    |   662 ms   |
 | python | scipy   | +mp          |     599 ms     |    1711 ms   |  11299 ms  |
 
 Notes
