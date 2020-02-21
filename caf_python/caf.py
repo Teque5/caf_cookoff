@@ -3,9 +3,11 @@ import numpy as np
 import time
 from scipy import signal
 import numba
+import multiprocessing
+import itertools
 
 @numba.jit(forceobj=True)
-def xcor_turbo(apple: np.ndarray, banana: np.ndarray) -> np.ndarray:
+def xcor_numba(apple: np.ndarray, banana: np.ndarray) -> np.ndarray:
     '''1D Cross-Correlation'''
     corr = signal.correlate(apple, banana, mode='same', method='fft')
     return np.abs(corr)
@@ -16,7 +18,7 @@ def xcor(apple, banana):
     return np.abs(corr)
 
 @numba.njit
-def apply_fdoa_turbo(ray: np.ndarray, fdoa: np.float64, samp_rate: np.float64) -> np.ndarray:
+def apply_fdoa_numba(ray: np.ndarray, fdoa: np.float64, samp_rate: np.float64) -> np.ndarray:
     precache = 2j * np.pi * fdoa / samp_rate
     new_ray = np.empty_like(ray)
     for idx, val in enumerate(ray):
@@ -30,6 +32,59 @@ def apply_fdoa(ray, fdoa, samp_rate):
     for idx, val in enumerate(ray):
         new_ray[idx] = val * np.exp(precache * idx)
     return new_ray
+
+def amb_surf_numba(needle, haystack, freqs_hz, samp_rate):
+    len_needle = len(needle)
+    len_haystack = len(haystack)
+    len_freqs = len(freqs_hz)
+    assert len_needle == len_haystack
+    surf = np.empty((len_freqs, len_needle))
+    for fdx, freq_hz in enumerate(freqs_hz):
+        shifted = apply_fdoa_numba(needle, freq_hz, samp_rate)
+        surf[fdx] = xcor_numba(shifted, haystack)
+    return surf
+
+def amb_row_worker(args):
+    needle, haystack, fdoa, samp_rate = args
+    shifted = apply_fdoa(needle, fdoa, samp_rate)
+    return xcor(shifted, haystack)
+
+def amb_row_worker_numba(args):
+    needle, haystack, fdoa, samp_rate = args
+    shifted = apply_fdoa_numba(needle, fdoa, samp_rate)
+    return xcor_numba(shifted, haystack)
+
+def amb_surf_multiprocessing(needle, haystack, freqs_hz, samp_rate):
+    len_needle = len(needle)
+    len_haystack = len(haystack)
+    len_freqs = len(freqs_hz)
+    assert len_needle == len_haystack
+    # surf = np.empty((len_freqs, len_needle))
+    with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+        args = zip(
+            itertools.repeat(needle),
+            itertools.repeat(haystack),
+            freqs_hz,
+            itertools.repeat(samp_rate)
+        )
+        res = pool.map(amb_row_worker, args)
+    return np.array(res)
+
+def amb_surf_multiprocessing_numba(needle, haystack, freqs_hz, samp_rate):
+    len_needle = len(needle)
+    len_haystack = len(haystack)
+    len_freqs = len(freqs_hz)
+    assert len_needle == len_haystack
+    # surf = np.empty((len_freqs, len_needle))
+    with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+        args = zip(
+            itertools.repeat(needle),
+            itertools.repeat(haystack),
+            freqs_hz,
+            itertools.repeat(samp_rate)
+        )
+        res = pool.map(amb_row_worker_numba, args)
+    return np.array(res)
 
 def amb_surf(needle, haystack, freqs_hz, samp_rate):
     '''
@@ -57,17 +112,16 @@ def amb_surf(needle, haystack, freqs_hz, samp_rate):
     assert len_needle == len_haystack
     surf = np.empty((len_freqs, len_needle))
     for fdx, freq_hz in enumerate(freqs_hz):
-        shifted = apply_fdoa_turbo(needle, freq_hz, samp_rate)
-        surf[fdx] = xcor_turbo(shifted, haystack)
+        shifted = apply_fdoa(needle, freq_hz, samp_rate)
+        surf[fdx] = xcor(shifted, haystack)
     return surf
 
 if __name__ == '__main__':
-    # TODO: Ambiguity plot is broken at the moment
+    # FIXME: Ambiguity plot is left-right reversed at the moment
     import matplotlib.pyplot as plt
     import os
     # from mpl_toolkits.mplot3d import Axes3D
 
-    start_time = time.time()
     data_dir = '../data'
     needle_filename = 'chirp_4_raw.c64'
     haystack_filename = 'chirp_4_T+70samp_F+82.89Hz.c64'
@@ -79,28 +133,24 @@ if __name__ == '__main__':
     samp_rate = 48e3
     freq_offsets = np.arange(-100, 100, 0.5)
 
-    start = time.time()
-    surf = amb_surf(needle_samples, haystack_samples, freq_offsets, samp_rate)
-    print('elap',time.time()-start)
-    print(surf.shape, surf.dtype)
+    # benchmarks
+    rounds = 3
+    print('running {} rounds per function'.format(rounds))
+    for func in [amb_surf, amb_surf_numba, amb_surf_multiprocessing, amb_surf_multiprocessing_numba]:
+        start = time.time()
+        for _ in range(rounds):
+            surf = func(needle_samples, haystack_samples, freq_offsets, samp_rate)
+        elap = (time.time()-start) / rounds
+        fmax, tmax = np.unravel_index(surf.argmax(), surf.shape)
+        tau_max = len(needle_samples)//2 - tmax
+        freq_max = freq_offsets[fmax]
+        print(func.__name__, surf.shape, surf.dtype, '->', tau_max, freq_max)
+        print(func.__name__, 'elap {:.9f} s'.format(elap))
 
-
-    fmax, tmax = np.unravel_index(surf.argmax(), surf.shape)
-
-    tau_max = len(needle_samples)//2 - tmax
-    freq_max = freq_offsets[fmax]
-    print(tau_max, freq_max)
-
-    stop_time = time.time()
-
-    run_time = stop_time - start_time
-
-    print('CAF compute time: {} sec'.format(run_time))
-
+    # plotting
     extents = [
         -len_needle//2, len_needle//2,
         100, -100]
-
     plt.figure(dpi=150)
     plt.imshow(surf, aspect='auto', interpolation='nearest', extent=extents)
     plt.ylabel('Frequency offset [Hz]')

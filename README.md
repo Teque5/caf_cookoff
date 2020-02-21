@@ -34,8 +34,10 @@ Time to compute a 400x8192 cross ambiguity surface.
 | language | method          | backend      | precision | i7-8550U 16GB | Ryzen3900X 32GB | ARM A57 4GB |
 |----------|-----------------|--------------|:---------:|:-------------:|:---------------:|:-----------:|
 | rust     | fb +std::thread | RustFFT      |    c128   |     147 ms    |      37 ms      |      -      |
+| python   | fb +mp +numba   | scipy.signal |    c128   |     181 ms    |      ? ms       |      -      |
 | go       | fb +goroutines  | fftw         |     c64   |      82 ms    |      41 ms      |      -      |
 | go       | fb +goroutines  | go-dsp       |    c128   |     208 ms    |      94 ms      |    955 ms   |
+| python   | fb +mp          | scipy.signal |    c128   |    1711 ms    |      ? ms       |      -      |
 
 Notes
 * go fftw implementation is not saving wisdom smartly. Data still handled as complex128, but fftw wrapper only supports complex64 so i'm casting in and out during the cross-correlation.
@@ -47,7 +49,7 @@ Notes
 |                         | python | rust |  go  |
 |-------------------------|:------:|:----:|:----:|
 | Min Time for Viable CAF |  1 hr  | 7 hr | 7 hr |
-| Time for Parallel Ver   |    ?   | 2 hr | 2 hr |
+| Time for Parallel Ver   | 30 min | 2 hr | 2 hr |
 | Performance             |  ★☆☆ | ★★★ | ★★☆ |
 | Simplicity              |  ★★★ | ★★☆ | ★★☆ |
 | Library Avail           |  ★★★ | ★★☆ | ★☆☆ |
