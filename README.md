@@ -33,7 +33,7 @@ Time to compute a 400x8192 cross ambiguity surface using the "filterbank" CAF al
 #### Multiple Threads
 | lang   | backend | accel        | Ryzen3900X 32G | i7-8550U 16G | ARM A57 4G |
 |--------|---------|--------------|:--------------:|:------------:|:----------:|
-| rust   | RustFFT | +std::thread |      26 ms     |    147 ms    |      -     |
+| rust   | RustFFT | +std::thread |      26 ms     |    133 ms    |      -     |
 | go     | fftw    | +goroutines  |      41 ms     |     82 ms    |      -     |
 | go     | go-dsp  | +goroutines  |      94 ms     |    208 ms    |   955 ms   |
 | python | scipy   | +mp +numba   |     133 ms     |    161 ms    |   662 ms   |
