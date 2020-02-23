@@ -54,6 +54,7 @@ Implementation Notes
 | Simplicity              |  ★★★ | ★★☆ | ★★☆ |
 | Library Avail           |  ★★★ | ★★☆ | ★☆☆ |
 | Cross-compilation       |  ☆☆☆ | ★★★ | ★★★ |
+| Source Lines of Code    |  120  |  402  |  236  |
 
 ### Observations
 * Numba is **amazing** and salvages Python's reputation in 2020
