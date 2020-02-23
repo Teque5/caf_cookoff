@@ -3,7 +3,7 @@ extern crate test;
 
 #[cfg(test)]
 mod caf_benches {
-    use caf_rust::caf::{read_file_c64, caf_surface, find_caf_peak};
+    use caf_rust::caf::{read_file_c64, caf_surface, find_caf_peak, apply_freq_shifts};
     use test::{black_box, Bencher};
 
     #[bench]
@@ -24,6 +24,16 @@ mod caf_benches {
             // Get the CAF surface
             let surface = caf_surface(&needle, &haystack, &shifts, 48000);
             find_caf_peak(surface);
+        }));
+    }
+    #[bench]
+    fn bench_apply_fdoa(b: &mut Bencher) {
+        let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();
+        let freq_hz = 77.77;
+        let samp_rate = 48000;
+        b.iter(|| black_box({
+            // Apply frequency offset
+            let shifted = apply_freq_shifts(&needle, freq_hz, samp_rate);
         }));
     }
 }

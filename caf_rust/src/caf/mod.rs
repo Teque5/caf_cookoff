@@ -76,7 +76,7 @@ impl BinaryIO for Vec<Complex64> {
 
 // Takes in a slice of samples at samp_rate and applies
 // a frequency shift to it
-fn apply_freq_shifts(samples: &[Complex64], freq_shift: f64, fs: u32)
+pub fn apply_freq_shifts(samples: &[Complex64], freq_shift: f64, fs: u32)
     -> Vec<Complex64> {
 
     // Convert (back) to vec
