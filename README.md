@@ -103,6 +103,12 @@ cd caf_python
 ```
 ## Code Comparison
 Implementations of the frequency shift function.
+
+|             | rust   |   go   | numba  | python   |
+|-------------|:------:|:------:|:------:|:--------:|
+| apply_shift | 120 μs | 137 μs | 158 μs | 10300 μs |
+|             |    1x  |  1.14x |  1.31x |    85x   |
+
 #### Rust
 ```rust
 fn apply_shift(ray: &[Complex64], freq_shift: f64, samp_rate: u32) -> Vec<Complex64> {
