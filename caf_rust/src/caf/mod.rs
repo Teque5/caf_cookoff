@@ -11,10 +11,8 @@ use std::thread;
 
 use num_complex::Complex64;
 
-// mod xcor_fftw;
-// use xcor_fftw::Xcor;
+mod xcor_fftw;
 mod xcor_rustfft;
-use xcor_rustfft::Xcor;
 
 
 // Reads a file of packed 32 bit floats and returns
@@ -74,121 +72,132 @@ impl BinaryIO for Vec<Complex64> {
     }
 }
 
-// Takes in a slice of samples at samp_rate and applies
-// a frequency shift to it
-pub fn apply_freq_shifts(samples: &[Complex64], freq_shift: f64, fs: u32)
-    -> Vec<Complex64> {
-
-    // Convert (back) to vec
-    let mut samples = samples.to_vec();
-
-    // Apply to each sample
-    // x *= e^(j*2pi*fs*df*t)
-    let dt = 1.0 / (fs as f64);
-    for (i, samp) in samples.iter_mut().enumerate() {
-        *samp *= Complex64::from_polar(&(1.0),
-            &(2.0 * PI * freq_shift * dt * (i as f64)));
-    }
-
-    // Return our shifted samples
-    samples
-}
-
 // Take in 2 signals and a range of frequency shifts to try
 // and compute their CAF. Return the surface as a 2D Vec of
 // cross correlation magnitudes squared (for efficiency)
 #[allow(dead_code)]
-pub struct CAFSurfaceRow {
+pub struct CafSurfaceRow {
     freq: f64,
     xcor_mag: Vec<f64>,
     xcor_peak_idx: usize,
     xcor_peak_val: f64,
 }
-pub fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
-    freqs_hz: &[f64], fs: u32)
-    -> Vec<CAFSurfaceRow> {
+pub trait CafSurface {
 
-    // Create our 2D surface and setup Vecs
-    let mut surface = Vec::new();
-    let mut needle = needle.to_vec();
-    let mut haystack = haystack.to_vec();
+    // Every implementation will be different
+    fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
+        freqs_hz: &[f64], fs: u32) -> Vec<CafSurfaceRow>;
 
-    // Zero-pad our inputs to 2N
-    needle.resize(needle.len() * 2, Default::default());
-    haystack.resize(haystack.len() * 2, Default::default());
-
-    // Setup threading channel and atomic immutable references
-    let (tx, rx) = mpsc::channel();
-    let needle = Arc::new(needle);
-    let haystack = Arc::new(haystack);
-
-    // Run the cross correlation against the shifted ones
-    let xcor = Xcor::new(needle.len());
-    for freq in freqs_hz.iter() {
-
-        // Copy what we need to for the thread
-        let tx = mpsc::Sender::clone(&tx);
-        let freq = *freq; // f64 can be copied, &f64 cannot
-        // Copy atomic immutable reference instead of full slice
-        let needle = Arc::clone(&needle);
-        let haystack = Arc::clone(&haystack);
-        let mut xcor = xcor.clone(); // Also calls Arc::clone in impl
-
-        // Spawn the thread and run
-        thread::spawn(move || {
-
-            // Generate a shifted copy and cross correlate with target
-            let shifted = apply_freq_shifts(&needle, freq, fs);
-            let xcor_res = xcor.run(&haystack, &shifted);
-
-            // Take the magnitude squared of the result and find (arg)max
-            let mut xcor_mag = Vec::with_capacity(xcor_res.len());
-            let mut max = Default::default();
-            let mut argmax = 0;
-            for (i, res) in xcor_res.iter().enumerate() {
-                // Use the magnitude squared (for efficiency)
-                let mag_squared = res.norm_sqr();
-                if mag_squared > max {
-                    max = mag_squared;
-                    argmax = i;
-                }
-                xcor_mag.push(mag_squared);
+    // Find the row with the highest correlation peak and return
+    // its (frequency, sample_index)
+    fn find_peak(arr: Vec<CafSurfaceRow>) -> (f64, usize) {
+        let mut max: &CafSurfaceRow = &CafSurfaceRow {
+            freq: 0.0, xcor_mag: Vec::new(),
+            xcor_peak_idx: 0, xcor_peak_val: 0.0
+        };
+        for row in arr.iter() {
+            if row.xcor_peak_val > max.xcor_peak_val {
+                max = &row;
             }
-
-            // Return our result to the main thread
-            tx.send(CAFSurfaceRow {
-                freq,
-                xcor_mag,
-                xcor_peak_idx: argmax,
-                xcor_peak_val: max,
-            }).unwrap();
-        });
-    }
-
-    // Wait for all threads to finish and
-    // Populate our results into a Vec, no longer ordered by freq
-    for _ in freqs_hz.iter() {
-        let row = rx.recv().unwrap();
-        surface.push(row);
-    }
-
-    // Return our CAF surface
-    surface
-}
-
-// Find the row with the highest correlation peak and return
-// its (frequency, sample_index)
-pub fn find_caf_peak(arr: Vec<CAFSurfaceRow>) -> (f64, usize) {
-    let mut max: &CAFSurfaceRow = &CAFSurfaceRow {
-        freq: 0.0, xcor_mag: Vec::new(),
-        xcor_peak_idx: 0, xcor_peak_val: 0.0
-    };
-    for row in arr.iter() {
-        if row.xcor_peak_val > max.xcor_peak_val {
-            max = &row;
         }
+        (max.freq, max.xcor_peak_idx)
     }
-    (max.freq, max.xcor_peak_idx)
+
+    // Takes in a slice of samples at samp_rate and applies
+    // a frequency shift to it
+    fn apply_freq_shift(samples: &[Complex64], freq_shift: f64, fs: u32)
+        -> Vec<Complex64> {
+
+        // Convert (back) to vec
+        let mut samples = samples.to_vec();
+
+        // Apply to each sample
+        // x *= e^(j*2pi*fs*df*t)
+        let dt = 1.0 / (fs as f64);
+        for (i, samp) in samples.iter_mut().enumerate() {
+            *samp *= Complex64::from_polar(&(1.0),
+                &(2.0 * PI * freq_shift * dt * (i as f64)));
+        }
+
+        // Return our shifted samples
+        samples
+    }
+}
+pub struct CafFFTW {} // FFTW one thread
+pub struct CafRustFFT {} // RustFFT one thread
+pub struct CafRustFFTThreads {} // RustFFT using std::threads
+impl CafSurface for CafRustFFTThreads {
+
+    fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
+        freqs_hz: &[f64], fs: u32) -> Vec<CafSurfaceRow> {
+
+        // Create our 2D surface and setup Vecs
+        let mut surface = Vec::new();
+        let mut needle = needle.to_vec();
+        let mut haystack = haystack.to_vec();
+
+        // Zero-pad our inputs to 2N
+        needle.resize(needle.len() * 2, Default::default());
+        haystack.resize(haystack.len() * 2, Default::default());
+
+        // Setup threading channel and atomic immutable references
+        let (tx, rx) = mpsc::channel();
+        let needle = Arc::new(needle);
+        let haystack = Arc::new(haystack);
+
+        // Run the cross correlation against the shifted ones
+        let xcor = xcor_rustfft::Xcor::new(needle.len());
+        for freq in freqs_hz.iter() {
+
+            // Copy what we need to for the thread
+            let tx = mpsc::Sender::clone(&tx);
+            let freq = *freq; // f64 can be copied, &f64 cannot
+            // Copy atomic immutable reference instead of full slice
+            let needle = Arc::clone(&needle);
+            let haystack = Arc::clone(&haystack);
+            let mut xcor = xcor.clone(); // Also calls Arc::clone in impl
+
+            // Spawn the thread and run
+            thread::spawn(move || {
+
+                // Generate a shifted copy and cross correlate with target
+                let shifted = Self::apply_freq_shift(&needle, freq, fs);
+                let xcor_res = xcor.run(&haystack, &shifted);
+
+                // Take the magnitude squared of the result and find (arg)max
+                let mut xcor_mag = Vec::with_capacity(xcor_res.len());
+                let mut max = Default::default();
+                let mut argmax = 0;
+                for (i, res) in xcor_res.iter().enumerate() {
+                    // Use the magnitude squared (for efficiency)
+                    let mag_squared = res.norm_sqr();
+                    if mag_squared > max {
+                        max = mag_squared;
+                        argmax = i;
+                    }
+                    xcor_mag.push(mag_squared);
+                }
+
+                // Return our result to the main thread
+                tx.send(CafSurfaceRow {
+                    freq,
+                    xcor_mag,
+                    xcor_peak_idx: argmax,
+                    xcor_peak_val: max,
+                }).unwrap();
+            });
+        }
+
+        // Wait for all threads to finish and
+        // Populate our results into a Vec, no longer ordered by freq
+        for _ in freqs_hz.iter() {
+            let row = rx.recv().unwrap();
+            surface.push(row);
+        }
+
+        // Return our CAF surface
+        surface
+    }
 }
 
 
@@ -198,7 +207,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_chip0() {
+    fn test_rustfft_threads_chirp0() {
         // Read Chirp 0 reference and modified files
         let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();
         let haystack = read_file_c64("../data/chirp_0_T+202samp_F+69.25Hz.c64").unwrap();
@@ -208,8 +217,8 @@ mod tests {
         let shifts = gen_float_shifts(-100.0, 100.0, 0.25);
 
         // Get the CAF estimates
-        let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq, samp_idx) = find_caf_peak(surface);
+        let surface = CafRustFFTThreads::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTThreads::find_peak(surface);
 
         // Confirm correct results
         assert_eq!(freq, 69.25);
@@ -217,7 +226,7 @@ mod tests {
     }
 
     #[test]
-    fn test_chirp1() {
+    fn test_rustfft_threads_chirp1() {
         // Read Chirp 1 reference and modified files
         let needle = read_file_c64("../data/chirp_1_raw.c64").unwrap();
         let haystack = read_file_c64("../data/chirp_1_T+78samp_F+35.99Hz.c64").unwrap();
@@ -227,8 +236,8 @@ mod tests {
         let shifts = gen_float_shifts(-50.0, 50.0, 1.0);
 
         // Get the CAF estimates
-        let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq, samp_idx) = find_caf_peak(surface);
+        let surface = CafRustFFTThreads::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTThreads::find_peak(surface);
 
         // Confirm correct results
         assert_eq!(freq, 36.0);
@@ -236,7 +245,7 @@ mod tests {
     }
 
     #[test]
-    fn test_chirp2() {
+    fn test_rustfft_threads_chirp2() {
         // Read Chirp 2 reference and modified files
         let needle = read_file_c64("../data/chirp_2_raw.c64").unwrap();
         let haystack = read_file_c64("../data/chirp_2_T+169samp_F+32.16Hz.c64").unwrap();
@@ -246,8 +255,8 @@ mod tests {
         let shifts = gen_float_shifts(30.0, 35.0, 0.05);
 
         // Get the CAF estimates
-        let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq, samp_idx) = find_caf_peak(surface);
+        let surface = CafRustFFTThreads::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTThreads::find_peak(surface);
 
         // Confirm correct results
         assert_eq!(freq, 32.15);
@@ -255,7 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn test_chip3() {
+    fn test_rustfft_threads_chirp3() {
         // Read Chirp 3 reference and modified files
         let needle = read_file_c64("../data/chirp_3_raw.c64").unwrap();
         let haystack = read_file_c64("../data/chirp_3_T+151samp_F-76.22Hz.c64").unwrap();
@@ -265,8 +274,8 @@ mod tests {
         let shifts = gen_float_shifts(-100.0, 100.0, 0.25);
 
         // Get the CAF estimates
-        let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq, samp_idx) = find_caf_peak(surface);
+        let surface = CafRustFFTThreads::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTThreads::find_peak(surface);
 
         // Confirm correct results
         assert_eq!(freq, -76.25);
@@ -274,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    fn test_chip4() {
+    fn test_rustfft_threads_chirp4() {
         // Read Chirp 4 reference and modified files
         let needle = read_file_c64("../data/chirp_4_raw.c64").unwrap();
         let haystack = read_file_c64("../data/chirp_4_T+70samp_F+82.89Hz.c64").unwrap();
@@ -284,8 +293,8 @@ mod tests {
         let shifts = gen_float_shifts(80.0, 100.0, 0.1);
 
         // Get the CAF estimates
-        let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq, samp_idx) = find_caf_peak(surface);
+        let surface = CafRustFFTThreads::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTThreads::find_peak(surface);
 
         // Confirm correct results
         assert_eq!(freq, 82.9);
@@ -293,7 +302,7 @@ mod tests {
     }
 
     #[test]
-    fn test_chip5() {
+    fn test_rustfft_threads_chirp5() {
         // Read Chirp 5 reference and modified files
         let needle = read_file_c64("../data/chirp_5_raw.c64").unwrap();
         let haystack = read_file_c64("../data/chirp_5_T+177samp_F-92.72Hz.c64").unwrap();
@@ -303,8 +312,8 @@ mod tests {
         let shifts = gen_float_shifts(-100.0, 100.0, 0.25);
 
         // Get the CAF estimates
-        let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq, samp_idx) = find_caf_peak(surface);
+        let surface = CafRustFFTThreads::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTThreads::find_peak(surface);
 
         // Confirm correct results
         assert_eq!(freq, -92.75);
@@ -312,7 +321,7 @@ mod tests {
     }
 
     #[test]
-    fn test_chip6() {
+    fn test_rustfft_threads_chirp6() {
         // Read Chirp 6 reference and modified files
         let needle = read_file_c64("../data/chirp_6_raw.c64").unwrap();
         let haystack = read_file_c64("../data/chirp_6_T+15samp_F-49.69Hz.c64").unwrap();
@@ -322,8 +331,8 @@ mod tests {
         let shifts = gen_float_shifts(-100.0, 100.0, 0.25);
 
         // Get the CAF estimates
-        let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq, samp_idx) = find_caf_peak(surface);
+        let surface = CafRustFFTThreads::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTThreads::find_peak(surface);
 
         // Confirm correct results
         assert_eq!(freq, -49.75);
@@ -331,7 +340,7 @@ mod tests {
     }
 
     #[test]
-    fn test_chip7() {
+    fn test_rustfft_threads_chirp7() {
         // Read Chirp 7 reference and modified files
         let needle = read_file_c64("../data/chirp_7_raw.c64").unwrap();
         let haystack = read_file_c64("../data/chirp_7_T+84samp_F+68.26Hz.c64").unwrap();
@@ -341,8 +350,8 @@ mod tests {
         let shifts = gen_float_shifts(-100.0, 100.0, 0.25);
 
         // Get the CAF estimates
-        let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq, samp_idx) = find_caf_peak(surface);
+        let surface = CafRustFFTThreads::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTThreads::find_peak(surface);
 
         // Confirm correct results
         assert_eq!(freq, 68.25);
@@ -350,7 +359,7 @@ mod tests {
     }
 
     #[test]
-    fn test_chip8() {
+    fn test_rustfft_threads_chirp8() {
         // Read Chirp 8 reference and modified files
         let needle = read_file_c64("../data/chirp_8_raw.c64").unwrap();
         let haystack = read_file_c64("../data/chirp_8_T+80samp_F-46.28Hz.c64").unwrap();
@@ -360,8 +369,8 @@ mod tests {
         let shifts = gen_float_shifts(-100.0, 100.0, 0.25);
 
         // Get the CAF estimates
-        let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq, samp_idx) = find_caf_peak(surface);
+        let surface = CafRustFFTThreads::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTThreads::find_peak(surface);
 
         // Confirm correct results
         assert_eq!(freq, -46.25);
@@ -369,7 +378,7 @@ mod tests {
     }
 
     #[test]
-    fn test_chip9() {
+    fn test_rustfft_threads_chirp9() {
         // Read Chirp 9 reference and modified files
         let (needle, haystack) = load_files(
             "../data/chirp_9_raw.c64",
@@ -379,8 +388,8 @@ mod tests {
         let shifts = gen_float_shifts(-100.0, 100.0, 0.5);
 
         // Get the CAF estimates
-        let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-        let (freq, samp_idx) = find_caf_peak(surface);
+        let surface = CafRustFFTThreads::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTThreads::find_peak(surface);
 
         // Confirm correct results
         assert_eq!(freq, 61.5);

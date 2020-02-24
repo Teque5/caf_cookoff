@@ -2,7 +2,7 @@
 // Use CLAP to take in two c64 files as arguments
 
 mod caf;
-use caf::{read_file_c64, caf_surface, find_caf_peak};
+use caf::{read_file_c64, CafSurface, CafRustFFTThreads};
 
 fn main() {
 
@@ -19,8 +19,8 @@ fn main() {
     }
 
     // Get the CAF surface
-    let surface = caf_surface(&needle, &haystack, &shifts, 48000);
-    let (freq, samp_idx) = find_caf_peak(surface);
+    let surface = CafRustFFTThreads::caf_surface(&needle, &haystack, &shifts, 48000);
+    let (freq, samp_idx) = CafRustFFTThreads::find_peak(surface);
 
     // Print the results
     println!("Frequency offset: {:.1}Hz", freq);
