@@ -20,7 +20,7 @@ mod tests {
 
         // -100Hz to 100Hz, 0.25Hz step
         let shifts = gen_float_shifts(-100.0, 100.0, 0.25);
-    
+
         // Get the CAF estimates
         let surface = CafRustFFT::caf_surface(&needle, &haystack, &shifts, 48000);
         let (freq, samp_idx) = CafRustFFT::find_peak(surface);
@@ -62,6 +62,25 @@ mod tests {
         // Get the CAF estimates
         let surface = CafRustFFTThreads::caf_surface(&needle, &haystack, &shifts, 48000);
         let (freq, samp_idx) = CafRustFFTThreads::find_peak(surface);
+
+        // Confirm correct results
+        assert_eq!(freq, 69.25);
+        assert_eq!(samp_idx, 202);
+    }
+
+    #[test]
+    fn test_rustfft_threadpool_chirp0() {
+        // Read Chirp 0 reference and modified files
+        let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_0_T+202samp_F+69.25Hz.c64").unwrap();
+        let haystack = &haystack[..needle.len()];
+
+        // -100Hz to 100Hz, 0.25Hz step
+        let shifts = gen_float_shifts(-100.0, 100.0, 0.25);
+
+        // Get the CAF estimates
+        let surface = CafRustFFTThreadpool::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTThreadpool::find_peak(surface);
 
         // Confirm correct results
         assert_eq!(freq, 69.25);

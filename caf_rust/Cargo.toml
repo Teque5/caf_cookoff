@@ -10,4 +10,6 @@ edition = "2018"
 fftw = { version = "0.6", default_features = false, features = ["system"] }
 itertools = "0.8"
 num-complex = "0.2"
+num_cpus = "1.12"
 rustfft = "3.0"
+threadpool = "1.7"
