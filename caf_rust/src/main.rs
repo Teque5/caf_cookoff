@@ -2,7 +2,10 @@
 // Use CLAP to take in two c64 files as arguments
 
 mod caf;
-use caf::{read_file_c64, CafSurface, CafRustFFTThreads};
+mod utils;
+
+use caf::{CafSurface, CafRustFFTThreads};
+use utils::read_file_c64;
 
 fn main() {
 
