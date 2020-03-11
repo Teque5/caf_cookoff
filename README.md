@@ -19,49 +19,59 @@ Teque5 predicts that *go* and *rust* will produce the fastest implementations, b
 
 ## Results
 ### Benchmarks
-Time to compute a 400x8192 cross ambiguity surface using the "filterbank" CAF algorithm. I/O is all float64 and complex128.
+Time to compute a 400x8192 cross ambiguity surface using the "filterbank" CAF algorithm. I/O is all float64 and complex128 unless otherwise noted.
 #### Single Thread
-| lang   | backend | accel        | Ryzen3900X 32G | i7-8550U 16G | ARM A57 4G |
-|--------|---------|:------------:|:--------------:|:------------:|:----------:|
-| go     | fftw    |              |     145 ms     |    178 ms    |      -     |
-| rust   | fftw    |              |     109 ms     |    201 ms    |      -     |
-| rust   | RustFFT |              |     177 ms     |    287 ms    |      -     |
-| python | scipy   | +numba       |     164 ms     |    497 ms    |   2315 ms  |
-| go     | go-dsp  |              |     827 ms     |    795 ms    |   2386 ms  |
-| python | scipy   |              |    5630 ms     |   4336 ms    |  41700 ms  |
+| lang   | backend | accel        | R9-3900X 32G | W-2135 256G | i7-8550U 16G | ARM A57 4G |
+|--------|---------|:------------:|:------------:|:-----------:|:------------:|:----------:|
+| rust   | fftw    |              |    109 ms    |    158 ms   |    201 ms    |      -     |
+| go     | fftw*   | *c64 FFT     |    145 ms    |    182 ms   |    178 ms    |      -     |
+| rust   | RustFFT |              |    177 ms    |    199 ms   |    287 ms    |      -     |
+| python | scipy   | +numba       |    164 ms    |    476 ms   |    497 ms    |   2315 ms  |
+| go     | go-dsp  |              |    827 ms    |    616 ms   |    795 ms    |   2386 ms  |
+| python | scipy   |              |   5630 ms    |   3828 ms   |   4336 ms    |  41700 ms  |
 
 #### Multiple Threads
-| lang   | backend | accel        | Ryzen3900X 32G | i7-8550U 16G | ARM A57 4G |
-|--------|---------|--------------|:--------------:|:------------:|:----------:|
-| rust   | RustFFT | +std::thread |      26 ms     |    133 ms    |      -     |
-| go     | fftw    | +goroutines  |      41 ms     |     82 ms    |      -     |
-| go     | go-dsp  | +goroutines  |      94 ms     |    208 ms    |   955 ms   |
-| python | scipy   | +mp +numba   |     133 ms     |    161 ms    |   662 ms   |
-| python | scipy   | +mp          |     599 ms     |   1634 ms    |  11299 ms  |
+| lang   | backend | accel        | R9-3900X 32G | W-3125 256G | i7-8550U 16G | ARM A57 4G |
+|--------|---------|--------------|:------------:|:-----------:|:------------:|:----------:|
+| rust   | RustFFT | +threadpool  |     28 ms    |     39 ms   |       -      |      -     |
+| go     | fftw*   | +goroutines  |     41 ms    |     58 ms   |     82 ms    |      -     |
+| rust   | RustFFT | +std::thread |     26 ms    |     58 ms   |    133 ms    |      -     |
+| go     | go-dsp  | +goroutines  |     94 ms    |    106 ms   |    208 ms    |   955 ms   |
+| python | scipy   | +mp +numba   |    133 ms    |    145 ms   |    161 ms    |   662 ms   |
+| python | scipy   | +mp          |    599 ms    |    884 ms   |   1634 ms    |  11299 ms  |
 
 Implementation Notes
 * go fftw implementation is not saving wisdom smartly. Also data still handled as complex128, but fftw wrapper only supports complex64 so i'm casting in and out during the cross-correlation.
 * `numba` uses `@numba.njit` with type hinting.
 * rust was not able to crosscompile the nightly bench for `aarch64` (armv8).
 * go was not able to crosscompile fftw bindings for `aarch64` (armv8).
+* go without goroutines had to explicitly specify GOMAXPROCS=1 on the W-3125 (and only the W-3125).
+  Failing to specify a single thread caused weird scheduling, leading to up to *3x slower performance*.
+  This is particularly bizzare, as all x86 machines were running Ubuntu 18.04 with the same Go version.
+* A multithreaded FFTW implementation was not attempted in Rust. Unlike RustFFT, the FFTW wrapper wasn't
+  very explicit about how it handled atomic operations, if at all.
 
 ### Subjective Conclusions
-|                         | python | rust |  go  |
-|-------------------------|:------:|:----:|:----:|
-| Min Time for Viable CAF |  1 hr  | 7 hr | 7 hr |
-| Time for Parallel Ver   | 30 min | 2 hr | 2 hr |
-| Performance             |  ★☆☆ | ★★★ | ★★☆ |
-| Simplicity              |  ★★★ | ★★☆ | ★★☆ |
-| Library Avail           |  ★★★ | ★★☆ | ★☆☆ |
-| Cross-compilation       |  ☆☆☆ | ★★★ | ★★★ |
-| Source Lines of Code    |  120  |  402  |  236  |
+|                         | python | rust  |  go   |
+|-------------------------|:------:|:-----:|:-----:|
+| Min Time for Viable CAF |  1 hr  | 7 hrs | 7 hrs |
+| Time for Parallel Ver   | 30 min | 2 hrs | 2 hrs |
+| Performance             |   ★☆☆  |  ★★★  |  ★★☆  |
+| Simplicity              |   ★★★  |  ★★☆  |  ★★☆  |
+| Library Avail           |   ★★★  |  ★★☆  |  ★☆☆  |
+| Cross-compilation       |   ☆☆☆  |  ★★☆  |  ★★☆  |
 
 ### Observations
 * Numba is **amazing** and salvages Python's reputation in 2020
-* Lack of benchmarking tools in Python sad 😿
+* Lack of benchmarking tools in Python is quite sad 😿
 * All three languages have excellent tooling
-* Go and Python both have complex types, but rust uses a struct with two floats for complex.
+* Go and Python both have native complex types, but rust relies on a (popular) external library for support.
+* Go and Rust MVPs were of comparable complexity
+* Both Rust and Go threading are miles ahead of C/C++
+* goroutines (green threads) end up being more "plug-and-play" than Rust's std::thread (os threads)
 * Go has fftw bindings or there is a fft library in go-dsp, but the latter isn't a full implementation and the former has quite a bit of complexity. I am disappointed such a basic tool isn't better integrated. The `go-dsp` implementation only supports `complex128` types, and the `fftw` wrapper only supports `complex64`, which is a real bummer. Additionally the `math` and `math/cmplx` libraries **only** support `complex128`. WHY!
+* The authors of the Rust and Go versions both had rated a 3/10 familiarity with the language before starting. Without
+  some initial exposure to core Rust concepts, the MVP for Rust would have taken significantly longer.
 
 ## Run
 ### Requires
@@ -90,6 +100,7 @@ cargo test
 cargo +nightly bench
 ```
 #### Go
+Install `go` from the [official downloads](https://golang.org/doc/install)
 ```bash
 cd caf_go
 go get github.com/mjibson/go-dsp/fft
@@ -111,16 +122,15 @@ Implementations of the frequency shift function.
 
 #### Rust
 ```rust
-fn apply_shift(ray: &[Complex64], freq_shift: f64, samp_rate: u32) -> Vec<Complex64> {
+fn apply_shift(ray: &[Complex64], freq_shift: f64, samp_rate: f64) -> Vec<Complex64> {
     // apply frequency shift
-    let mut ray = ray.to_vec();
-    let dt = 1.0 / (samp_rate as f64);
-    let exp_common = Complex64::new(0.0, 2.0 * PI * dt * freq_shift);
-    for (i, samp) in ray.iter_mut().enumerate() {
+    let mut new_ray = ray.to_vec();
+    let precache = Complex64::new(0.0, 2.0*PI*freq_shift/samp_rate);
+    for (idx, val) in ray.iter_mut().enumerate() {
         let exp = Complex64::new(i as f64, 0.0) * exp_common;
-        *samp *= Complex64::exp(&exp);
+        new_ray[idx] = val * Complex64::exp(&exp);
     }
-    ray
+    new_ray
 }
 ```
 #### Go
