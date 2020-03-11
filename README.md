@@ -24,10 +24,10 @@ Time to compute a 400x8192 cross ambiguity surface using the "filterbank" CAF al
 | lang   | backend | accel        | R9-3900X 32G | W-2135 256G | i7-8550U 16G | ARM A57 4G |
 |--------|---------|:------------:|:------------:|:-----------:|:------------:|:----------:|
 | rust   | fftw    |              |    109 ms    |    158 ms   |    201 ms    |      -     |
-| go     | fftw*   | *c64 FFT     |    145 ms    |    182 ms   |    178 ms    |      -     |
+| go     | fftw*   | *c64 FFT     |    119 ms    |    182 ms   |    178 ms    |      -     |
 | rust   | RustFFT |              |    177 ms    |    199 ms   |    287 ms    |      -     |
 | python | scipy   | +numba       |    164 ms    |    476 ms   |    497 ms    |   2315 ms  |
-| go     | go-dsp  |              |    827 ms    |    616 ms   |    795 ms    |   2386 ms  |
+| go     | go-dsp  |              |    406 ms    |    616 ms   |    795 ms    |   2386 ms  |
 | python | scipy   |              |   5630 ms    |   3828 ms   |   4336 ms    |  41700 ms  |
 
 #### Multiple Threads
@@ -45,9 +45,8 @@ Implementation Notes
 * `numba` uses `@numba.njit` with type hinting.
 * rust was not able to crosscompile the nightly bench for `aarch64` (armv8).
 * go was not able to crosscompile fftw bindings for `aarch64` (armv8).
-* go without goroutines had to explicitly specify GOMAXPROCS=1 on the W-3125 (and only the W-3125).
-  Failing to specify a single thread caused weird scheduling, leading to up to *3x slower performance*.
-  This is particularly bizzare, as all x86 machines were running Ubuntu 18.04 with the same Go version.
+* go without goroutines had to explicitly specify GOMAXPROCS=1. Failing to specify this for
+  single threaded benchmarks caused weird scheduling, leading to up to *3x slower performance*.
 * A multithreaded FFTW implementation was not attempted in Rust. Unlike RustFFT, the FFTW wrapper wasn't
   very explicit about how it handled atomic operations, if at all.
 
