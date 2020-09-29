@@ -10,7 +10,13 @@ extern crate test;
 #[cfg(test)]
 mod caf_benches {
     use caf_rust::caf::{CafSurface,
-        CafRustFFT, CafRustFFTThreads, CafRustFFTThreadpool, CafFFTW};
+        CafRustFFT,
+        CafRustFFTIter,
+        CafRustFFTRayon,
+        CafRustFFTIterRayon,
+        CafRustFFTThreads,
+        CafRustFFTThreadpool,
+        CafFFTW};
     use caf_rust::utils::read_file_c64;
     use test::{black_box, Bencher};
 
@@ -32,6 +38,69 @@ mod caf_benches {
             // Get the CAF surface
             let surface = CafRustFFT::caf_surface(&needle, &haystack, &shifts, 48000);
             CafRustFFT::find_peak(surface);
+        }));
+    }
+
+    #[bench]
+    fn bench_rustfft_iter(b: &mut Bencher) {
+        // Get signals 1 and 2 to compute the caf of
+        let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();
+        let mut haystack = read_file_c64("../data/chirp_0_T+202samp_F+69.25Hz.c64").unwrap();
+        haystack.resize(needle.len(), Default::default());
+
+        // -100Hz to 100Hz, 0.5Hz step
+        let mut shifts = Vec::new();
+        for shift_millihz in (-100000..100000).step_by(500) {
+            let shift = (shift_millihz as f64) / 1e3;
+            shifts.push(shift);
+        }
+
+        b.iter(|| black_box({
+            // Get the CAF surface
+            let surface = CafRustFFTIter::caf_surface(&needle, &haystack, &shifts, 48000);
+            CafRustFFTIter::find_peak(surface);
+        }));
+    }
+    
+    #[bench]
+    fn bench_rustfft_rayon(b: &mut Bencher) {
+        // Get signals 1 and 2 to compute the caf of
+        let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();
+        let mut haystack = read_file_c64("../data/chirp_0_T+202samp_F+69.25Hz.c64").unwrap();
+        haystack.resize(needle.len(), Default::default());
+
+        // -100Hz to 100Hz, 0.5Hz step
+        let mut shifts = Vec::new();
+        for shift_millihz in (-100000..100000).step_by(500) {
+            let shift = (shift_millihz as f64) / 1e3;
+            shifts.push(shift);
+        }
+
+        b.iter(|| black_box({
+            // Get the CAF surface
+            let surface = CafRustFFTRayon::caf_surface(&needle, &haystack, &shifts, 48000);
+            CafRustFFTRayon::find_peak(surface);
+        }));
+    }
+
+    #[bench]
+    fn bench_rustfft_iter_rayon(b: &mut Bencher) {
+        // Get signals 1 and 2 to compute the caf of
+        let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();
+        let mut haystack = read_file_c64("../data/chirp_0_T+202samp_F+69.25Hz.c64").unwrap();
+        haystack.resize(needle.len(), Default::default());
+
+        // -100Hz to 100Hz, 0.5Hz step
+        let mut shifts = Vec::new();
+        for shift_millihz in (-100000..100000).step_by(500) {
+            let shift = (shift_millihz as f64) / 1e3;
+            shifts.push(shift);
+        }
+
+        b.iter(|| black_box({
+            // Get the CAF surface
+            let surface = CafRustFFTIterRayon::caf_surface(&needle, &haystack, &shifts, 48000);
+            CafRustFFTIterRayon::find_peak(surface);
         }));
     }
 

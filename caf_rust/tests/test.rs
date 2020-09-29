@@ -31,6 +31,63 @@ mod tests {
     }
 
     #[test]
+    fn test_rustfft_iter_chirp0() {
+        // Read Chirp 0 reference and modified files
+        let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_0_T+202samp_F+69.25Hz.c64").unwrap();
+        let haystack = &haystack[..needle.len()];
+
+        // -100Hz to 100Hz, 0.25Hz step
+        let shifts = gen_float_shifts(-100.0, 100.0, 0.25);
+
+        // Get the CAF estimates
+        let surface = CafRustFFTIter::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTIter::find_peak(surface);
+
+        // Confirm correct results
+        assert_eq!(freq, 69.25);
+        assert_eq!(samp_idx, 202);
+    }
+
+    #[test]
+    fn test_rustfft_rayon_chirp0() {
+        // Read Chirp 0 reference and modified files
+        let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_0_T+202samp_F+69.25Hz.c64").unwrap();
+        let haystack = &haystack[..needle.len()];
+
+        // -100Hz to 100Hz, 0.25Hz step
+        let shifts = gen_float_shifts(-100.0, 100.0, 0.25);
+
+        // Get the CAF estimates
+        let surface = CafRustFFTRayon::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTRayon::find_peak(surface);
+
+        // Confirm correct results
+        assert_eq!(freq, 69.25);
+        assert_eq!(samp_idx, 202);
+    }
+
+    #[test]
+    fn test_rustfft_rayon_iter_chirp0() {
+        // Read Chirp 0 reference and modified files
+        let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();
+        let haystack = read_file_c64("../data/chirp_0_T+202samp_F+69.25Hz.c64").unwrap();
+        let haystack = &haystack[..needle.len()];
+
+        // -100Hz to 100Hz, 0.25Hz step
+        let shifts = gen_float_shifts(-100.0, 100.0, 0.25);
+
+        // Get the CAF estimates
+        let surface = CafRustFFTIterRayon::caf_surface(&needle, &haystack, &shifts, 48000);
+        let (freq, samp_idx) = CafRustFFTIterRayon::find_peak(surface);
+
+        // Confirm correct results
+        assert_eq!(freq, 69.25);
+        assert_eq!(samp_idx, 202);
+    }
+
+    #[test]
     fn test_fftw_chirp0() {
         // Read Chirp 0 reference and modified files
         let needle = read_file_c64("../data/chirp_0_raw.c64").unwrap();

@@ -3,6 +3,7 @@ use std::sync::{mpsc, Arc};
 use std::thread;
 
 use num_complex::Complex64;
+use rayon::prelude::*;
 use threadpool::ThreadPool;
 
 mod xcor_fftw;
@@ -159,6 +160,150 @@ impl CafSurface for CafRustFFT {
 
         // Return our CAF surface
         surface
+    }
+}
+
+pub struct CafRustFFTRayon {} // RustFFT with Rayon parallelization
+impl CafSurface for CafRustFFTRayon {
+
+    fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
+        freqs_hz: &[f64], fs: u32) -> Vec<CafSurfaceRow> {
+
+        // Create our 2D surface and setup Vecs
+        let mut needle = needle.to_vec();
+        let mut haystack = haystack.to_vec();
+
+        // Zero-pad our inputs to 2N
+        needle.resize(needle.len() * 2, Default::default());
+        haystack.resize(haystack.len() * 2, Default::default());
+
+        // Run the cross correlation against the shifted ones
+        let xcor = xcor_rustfft::Xcor::new(needle.len());
+        let surface: Vec<CafSurfaceRow> = freqs_hz.par_iter().map(|freq| {
+
+            // Generate a shifted copy and cross correlate with target
+            let shifted = Self::apply_freq_shift(&needle, *freq, fs);
+            let xcor_res = xcor.clone().run(&haystack, &shifted);
+
+            // Take the magnitude squared of the result and find (arg)max
+            let mut xcor_mag = Vec::with_capacity(xcor_res.len());
+            let mut max = Default::default();
+            let mut argmax = 0;
+            for (i, res) in xcor_res.iter().enumerate() {
+                // Use the magnitude squared (for efficiency)
+                let mag_squared = res.norm_sqr();
+                if mag_squared > max {
+                    max = mag_squared;
+                    argmax = i;
+                }
+                xcor_mag.push(mag_squared);
+            }
+
+            // Return our surface row
+            CafSurfaceRow {
+                freq: *freq,
+                xcor_mag,
+                xcor_peak_idx: argmax,
+                xcor_peak_val: max,
+            }
+        }).collect();
+
+        // Return our CAF surface
+        surface
+    }
+}
+
+pub struct CafRustFFTIter {} // RustFFT, but with iterators
+impl CafSurface for CafRustFFTIter {
+
+    fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
+        freqs_hz: &[f64], fs: u32) -> Vec<CafSurfaceRow> {
+
+        // Create our 2D surface and setup Vecs
+        let mut needle = needle.to_vec();
+        let mut haystack = haystack.to_vec();
+
+        // Zero-pad our inputs to 2N
+        needle.resize(needle.len() * 2, Default::default());
+        haystack.resize(haystack.len() * 2, Default::default());
+
+        // Run the cross correlation against the shifted ones
+        let mut xcor = xcor_rustfft::Xcor::new(needle.len());
+        // Return our CAF surface
+        freqs_hz.iter()
+
+            // Get the shifted copy and cross correlate with target
+            .map(|&freq| (freq, Self::apply_freq_shift(&needle, freq, fs)))
+            .map(|(freq, shifted): (f64, Vec<Complex64>)| (freq, xcor.run(&haystack, &shifted)))
+
+            // Take the maginute squared of the result and find (arg)max
+            .map(|(freq, xcor_res): (f64, Vec<Complex64>)| (freq, xcor_res.iter()
+                .map(|x| x.norm_sqr())
+                .collect()))
+            .map(|(freq, xcor_mag): (f64, Vec<f64>)| (freq, (&xcor_mag).iter()
+                .enumerate()
+                .fold((0, xcor_mag[0]), |(idx_max, val_max), (idx, val)| {
+                    if val > &val_max {
+                        (idx, *val)
+                    } else {
+                        (idx_max, val_max)
+                    }
+                }), xcor_mag))
+            .map(|(freq, (idx_max, val_max), xcor_mag): (f64, (usize, f64), Vec<f64>)| (freq, xcor_mag, idx_max, val_max))
+            .map(|(freq, xcor_mag, xcor_peak_idx, xcor_peak_val): (f64, Vec<f64>, usize, f64)| CafSurfaceRow {
+                freq,
+                xcor_mag,
+                xcor_peak_idx: xcor_peak_idx,
+                xcor_peak_val: xcor_peak_val,
+            })
+            .collect()
+    }
+}
+
+pub struct CafRustFFTIterRayon {} // RustFFT with Rayon-accelerated parallel iterators
+impl CafSurface for CafRustFFTIterRayon {
+
+    fn caf_surface(needle: &[Complex64], haystack: &[Complex64],
+        freqs_hz: &[f64], fs: u32) -> Vec<CafSurfaceRow> {
+
+        // Create our 2D surface and setup Vecs
+        let mut needle = needle.to_vec();
+        let mut haystack = haystack.to_vec();
+
+        // Zero-pad our inputs to 2N
+        needle.resize(needle.len() * 2, Default::default());
+        haystack.resize(haystack.len() * 2, Default::default());
+
+        // Run the cross correlation against the shifted ones
+        let xcor = xcor_rustfft::Xcor::new(needle.len());
+        // Return our CAF surface
+        freqs_hz.par_iter()
+
+            // Get the shifted copy and cross correlate with target
+            .map(|&freq| (freq, Self::apply_freq_shift(&needle, freq, fs)))
+            .map(|(freq, shifted): (f64, Vec<Complex64>)| (freq, xcor.clone().run(&haystack, &shifted)))
+
+            // Take the maginute squared of the result and find (arg)max
+            .map(|(freq, xcor_res): (f64, Vec<Complex64>)| (freq, xcor_res.iter()
+                .map(|x| x.norm_sqr())
+                .collect()))
+            .map(|(freq, xcor_mag): (f64, Vec<f64>)| (freq, (&xcor_mag).iter()
+                .enumerate()
+                .fold((0, xcor_mag[0]), |(idx_max, val_max), (idx, val)| {
+                    if val > &val_max {
+                        (idx, *val)
+                    } else {
+                        (idx_max, val_max)
+                    }
+                }), xcor_mag))
+            .map(|(freq, (idx_max, val_max), xcor_mag): (f64, (usize, f64), Vec<f64>)| (freq, xcor_mag, idx_max, val_max))
+            .map(|(freq, xcor_mag, xcor_peak_idx, xcor_peak_val): (f64, Vec<f64>, usize, f64)| CafSurfaceRow {
+                freq,
+                xcor_mag,
+                xcor_peak_idx: xcor_peak_idx,
+                xcor_peak_val: xcor_peak_val,
+            })
+            .collect()
     }
 }
 

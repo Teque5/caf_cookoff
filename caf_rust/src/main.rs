@@ -4,7 +4,7 @@
 mod caf;
 mod utils;
 
-use caf::{CafSurface, CafRustFFTThreads};
+use caf::{CafSurface, CafRustFFTIterRayon};
 use utils::read_file_c64;
 
 fn main() {
@@ -22,8 +22,8 @@ fn main() {
     }
 
     // Get the CAF surface
-    let surface = CafRustFFTThreads::caf_surface(&needle, &haystack, &shifts, 48000);
-    let (freq, samp_idx) = CafRustFFTThreads::find_peak(surface);
+    let surface = CafRustFFTIterRayon::caf_surface(&needle, &haystack, &shifts, 48000);
+    let (freq, samp_idx) = CafRustFFTIterRayon::find_peak(surface);
 
     // Print the results
     println!("Frequency offset: {:.1}Hz", freq);
