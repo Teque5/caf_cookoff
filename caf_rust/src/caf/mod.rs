@@ -52,9 +52,12 @@ pub trait CafSurface {
         // Apply to each sample
         // x *= e^(j*2pi*fs*df*t)
         let dt = 1.0 / (fs as f64);
-        for (i, samp) in samples.iter_mut().enumerate() {
-            *samp *= Complex64::from_polar(&(1.0),
-                &(2.0 * PI * freq_shift * dt * (i as f64)));
+        let shift = Complex64::from_polar(&(1.0),
+            &(2.0 * PI * freq_shift * dt));
+        let mut accum_shift = Complex64::new(1.0, 0.0);
+        for samp in samples.iter_mut() {
+            *samp *= accum_shift;
+            accum_shift *= shift;
         }
 
         // Return our shifted samples
