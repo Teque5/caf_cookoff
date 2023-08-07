@@ -30,9 +30,9 @@ impl Xcor {
 
         // Create planners
         let fp = C2CPlan::aligned(
-            &[n], Sign::Forward, Flag::Measure).unwrap();
+            &[n], Sign::Forward, Flag::MEASURE).unwrap();
         let rp = C2CPlan::aligned(
-            &[n], Sign::Backward, Flag::Measure).unwrap();
+            &[n], Sign::Backward, Flag::MEASURE).unwrap();
 
         // Return new struct
         Xcor {
